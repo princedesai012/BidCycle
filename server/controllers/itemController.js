@@ -1,26 +1,88 @@
 const Item = require('../models/Item');
 const Bid = require('../models/Bid');
 const upload = require('../middleware/upload');
-const nodemailer = require('nodemailer');
+const { sendEmail, getStyledHtml } = require('../utils/emailService'); // ADDED getStyledHtml
 
-// Email Configuration
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: false, 
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+// Helper: Send Emails with Professional Styling
+const sendAuctionResultEmails = async (item, winningBid) => {
+  try {
+    // Get all unique bidders for this item
+    const allBids = await Bid.find({ item: item._id }).populate('bidder');
+    const uniqueBidders = [...new Map(allBids.map(b => [b.bidder.email, b.bidder])).values()];
+
+    const winnerEmail = winningBid.bidder.email;
+
+    // Loop through bidders and send appropriate email
+    for (const bidder of uniqueBidders) {
+      const isWinner = bidder.email === winnerEmail;
+      
+      let subject, html, text;
+
+      if (isWinner) {
+        subject = `🎉 You Won! - ${item.title}`;
+        text = `Congratulations! You won the auction for ${item.title} for $${winningBid.amount}.`;
+        
+        const content = `
+          <p>Congratulations, <strong>${bidder.name}</strong>!</p>
+          <p>You are the winning bidder for <span class="highlight">${item.title}</span>.</p>
+          
+          <div style="background-color: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+             <p style="margin:0; font-size: 14px; color: #065f46;">Winning Bid Amount</p>
+             <p style="margin:5px 0 0 0; font-size: 24px; font-weight: bold; color: #059669;">$${winningBid.amount}</p>
+          </div>
+
+          <p>The item is now yours! Please check your dashboard to contact the seller and arrange for delivery/payment.</p>
+        `;
+
+        const actionBtn = `<a href="${process.env.FRONTEND_URL || '#'}/items/${item._id}" class="btn">View Item Details</a>`;
+        
+        html = getStyledHtml('You Won the Auction! 🎉', content, actionBtn);
+
+      } else {
+        subject = `Auction Ended - ${item.title}`;
+        text = `The auction for ${item.title} has ended. The winning bid was $${winningBid.amount}.`;
+
+        const content = `
+          <p>Hello <strong>${bidder.name}</strong>,</p>
+          <p>The auction for <strong>${item.title}</strong> has officially ended.</p>
+          <p>Unfortunately, you did not place the highest bid this time.</p>
+          
+          <ul style="background: #f9fafb; padding: 15px 20px; border-radius: 8px; list-style: none; margin: 20px 0;">
+            <li style="margin-bottom: 5px;"><strong>Final Price:</strong> $${winningBid.amount}</li>
+            <li><strong>Winner:</strong> ${winningBid.bidder.name}</li>
+          </ul>
+
+          <p>Don't worry! There are plenty more items waiting for you.</p>
+        `;
+
+        const actionBtn = `<a href="${process.env.FRONTEND_URL || '#'}/" class="btn">Browse More Items</a>`;
+
+        html = getStyledHtml('Auction Ended', content, actionBtn);
+      }
+
+      await sendEmail(bidder.email, subject, text, html);
+    }
+    // console.log(`Auction emails sent for item: ${item._id}`);
+  } catch (error) {
+    console.error('Error sending auction emails:', error);
   }
-});
+};
 
-// Helper: Check and Finalize Auction
-const checkAndProcessAuctionEnd = async (item) => {
+// 3. Central Status Checker
+const checkAndProcessAuctionStatus = async (item) => {
   const now = new Date();
-  // Only process if time is up AND status is still active
-  if (item.status === 'active' && new Date(item.endTime) <= now) {
-    
-    // Find the highest bid
+  const start = new Date(item.startTime || item.createdAt);
+  const end = new Date(item.endTime);
+  let updated = false;
+
+  // A. START: Upcoming -> Active
+  if (item.status === 'upcoming' && now >= start) {
+    item.status = 'active';
+    updated = true;
+  }
+
+  // B. END: Active -> Sold/Expired
+  if (item.status === 'active' && now >= end) {
     const highestBid = await Bid.findOne({ item: item._id })
       .sort({ amount: -1 })
       .populate('bidder');
@@ -30,116 +92,67 @@ const checkAndProcessAuctionEnd = async (item) => {
       item.winner = highestBid.bidder._id;
       item.currentBid = highestBid.amount;
       
-      await item.save(); // Save winner status first
+      await item.save(); 
+      updated = false;
 
-      // Send Emails asynchronously
+      // Send emails
       sendAuctionResultEmails(item, highestBid).catch(err => 
         console.error('Email sending failed:', err)
       );
-
     } else {
       item.status = 'expired';
-      await item.save();
+      updated = true;
     }
   }
+
+  if (updated) await item.save();
 };
 
-// Helper: Send Emails
-const sendAuctionResultEmails = async (item, winningBid) => {
-  try {
-    // 1. Get all unique bidders for this item
-    const allBids = await Bid.find({ item: item._id }).populate('bidder');
-    const uniqueBidders = [...new Map(allBids.map(b => [b.bidder.email, b.bidder])).values()];
+// --- CONTROLLER METHODS (Standard methods) ---
 
-    const winnerEmail = winningBid.bidder.email;
-
-    // 2. Loop through bidders and send appropriate email
-    for (const bidder of uniqueBidders) {
-      const isWinner = bidder.email === winnerEmail;
-      
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: bidder.email,
-        subject: isWinner ? `🎉 You Won! - ${item.title}` : `Auction Ended - ${item.title}`,
-        html: isWinner 
-          ? `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-              <h1 style="color: #4f46e5;">Congratulations! 🎉</h1>
-              <p>You have won the auction for <strong>${item.title}</strong>.</p>
-              <p>Winning Bid: <strong style="color: #16a34a; font-size: 18px;">$${winningBid.amount}</strong></p>
-              <p>Please contact the seller to arrange payment and delivery.</p>
-            </div>
-          `
-          : `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-              <h2 style="color: #555;">Auction Ended</h2>
-              <p>The auction for <strong>${item.title}</strong> has ended.</p>
-              <p>Unfortunately, you did not win this time.</p>
-              <p>Winning Bid: <strong>$${winningBid.amount}</strong></p>
-              <p>Better luck next time!</p>
-            </div>
-          `
-      };
-
-      await transporter.sendMail(mailOptions);
-    }
-    console.log(`Auction emails sent for item: ${item._id}`);
-  } catch (error) {
-    console.error('Error sending auction emails:', error);
-  }
-};
-
-// --- CONTROLLER METHODS UPDATED TO USE CHECK ---
-
-// Add item
 exports.addItem = async (req, res) => {
   try {
-    const { title, description, category, basePrice, auctionDuration, customEndTime } = req.body;
+    const { 
+      title, description, category, basePrice, 
+      auctionDuration, customEndTime, scheduleType, customStartTime 
+    } = req.body;
     
     let imageUrls = [];
-    if (req.files && req.files.length > 0) {
-      imageUrls = req.files.map(file => file.path);
+    if (req.files && req.files.length > 0) imageUrls = req.files.map(file => file.path);
+
+    if (!title || !description || !category || !basePrice) {
+      return res.status(400).json({ message: 'Required fields missing.' });
     }
 
-    // Validation: Require title, desc, cat, price. 
-    // AND require EITHER auctionDuration OR customEndTime
-    if (!title || !description || !category || !basePrice || (!auctionDuration && !customEndTime)) {
-      return res.status(400).json({ message: 'All fields are required.' });
+    let startTime = new Date();
+    let status = 'active';
+
+    if (scheduleType === 'scheduled' && customStartTime) {
+      startTime = new Date(customStartTime);
+      if (startTime > new Date()) status = 'upcoming';
     }
-    
+
     let endTime;
     let finalDuration;
 
-    // LOGIC: Determine End Time
     if (customEndTime) {
-      // 1. User provided a specific date/time
       endTime = new Date(customEndTime);
-      
-      // Validation: Must be in future
-      if (endTime <= new Date()) {
-        return res.status(400).json({ message: 'End time must be in the future.' });
-      }
-
-      // Calculate approximate duration in hours for the DB schema (since it's required)
-      const diffMs = endTime - Date.now();
-      finalDuration = diffMs / (1000 * 60 * 60); 
-
+      if (endTime <= startTime) return res.status(400).json({ message: 'End time must be after start time.' });
+      finalDuration = (endTime - startTime) / (1000 * 60 * 60);
     } else {
-      // 2. User provided fixed duration (hours)
-      finalDuration = parseFloat(auctionDuration);
-      endTime = new Date(Date.now() + finalDuration * 60 * 60 * 1000);
+      finalDuration = parseFloat(auctionDuration) || 24;
+      endTime = new Date(startTime.getTime() + finalDuration * 60 * 60 * 1000);
     }
     
     const item = await Item.create({
       seller: req.user._id,
-      title,
-      description,
-      category,
+      title, description, category,
       images: imageUrls,
-      basePrice,
-      currentBid: basePrice,
-      auctionDuration: finalDuration, // Store calculated or provided duration
+      basePrice, currentBid: basePrice,
+      auctionDuration: finalDuration,
+      startTime,
       endTime,
+      status
     });
     
     await item.populate('seller', 'name email');
@@ -150,7 +163,6 @@ exports.addItem = async (req, res) => {
   }
 };
 
-// Get all items (public)
 exports.getAllItems = async (req, res) => {
   try {
     const { category, status, search, page = 1, limit = 12 } = req.query;
@@ -159,29 +171,23 @@ exports.getAllItems = async (req, res) => {
     if (category) query.category = category;
     if (search) query.title = { $regex: search, $options: 'i' };
 
-    // Standardize finding items first
     let items = await Item.find(query)
       .populate('seller', 'name')
       .populate('winner', 'name')
       .sort({ createdAt: -1 });
 
-    // Process status checks for ALL fetched items
     for (let item of items) {
-      await checkAndProcessAuctionEnd(item);
+      await checkAndProcessAuctionStatus(item);
     }
 
-    // Now filter by status in memory or refetch (Memory is safer after update)
-    // For pagination accuracy, it's better to update first then query, 
-    // but for performance on large DBs, you'd run a cron job. 
-    // Here we'll just filter the results for the response.
-    
-    if (status === 'active') {
-      items = items.filter(i => i.status === 'active' && new Date(i.endTime) > new Date());
-    } else if (status === 'ended') {
-      items = items.filter(i => i.status !== 'active' || new Date(i.endTime) <= new Date());
+    if (status) {
+        if (status === 'active') items = items.filter(i => ['active', 'upcoming'].includes(i.status));
+        else if (status === 'ended') items = items.filter(i => ['sold', 'closed', 'expired'].includes(i.status));
+        else items = items.filter(i => i.status === status);
+    } else {
+        items = items.filter(i => ['active', 'upcoming'].includes(i.status));
     }
 
-    // Manual pagination since we filtered in memory
     const total = items.length;
     const startIndex = (page - 1) * limit;
     const paginatedItems = items.slice(startIndex, startIndex + parseInt(limit));
@@ -201,51 +207,27 @@ exports.getAllItems = async (req, res) => {
   }
 };
 
-// Get item by ID
 exports.getItemById = async (req, res) => {
   try {
     const item = await Item.findById(req.params.id)
       .populate('seller', 'name email')
       .populate('winner', 'name email');
-      
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found.' });
-    }
-    
-    // Check status
-    await checkAndProcessAuctionEnd(item);
-    
+    if (!item) return res.status(404).json({ message: 'Item not found.' });
+    await checkAndProcessAuctionStatus(item);
     res.json(item);
-  } catch (error) {
-    console.error('Get item by ID error:', error);
-    res.status(500).json({ message: 'Server error.' });
-  }
+  } catch (error) { res.status(500).json({ message: 'Server error.' }); }
 };
 
-// View seller's items
 exports.getMyItems = async (req, res) => {
   try {
-    // 1. Fetch items where 'seller' matches the logged-in user's ID
-    // 2. Sort by 'createdAt' descending (-1) so newest are first
     const items = await Item.find({ seller: req.user._id })
       .populate('seller', 'name email')
-      .populate('winner', 'name email')
       .sort({ createdAt: -1 });
-    
-    // 3. Update statuses (Active -> Expired/Sold) if time has passed
-    // This ensures your Dashboard stats (Active vs Sold) are accurate right now
-    for (let item of items) {
-      await checkAndProcessAuctionEnd(item);
-    }
-    
+    for (let item of items) await checkAndProcessAuctionStatus(item);
     res.json(items);
-  } catch (error) {
-    console.error('Get my items error:', error);
-    res.status(500).json({ message: 'Server error.' });
-  }
+  } catch (error) { res.status(500).json({ message: 'Server error.' }); }
 };
 
-// -- KEEP OTHER METHODS (editItem, deleteItem, etc.) SAME AS BEFORE --
 exports.editItem = async (req, res) => {
     try {
       const item = await Item.findById(req.params.id);
