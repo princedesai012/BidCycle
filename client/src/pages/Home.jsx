@@ -3,32 +3,33 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import debounce from '../utils/debounce';
-import { 
-  Search, Filter, Tag, Clock, DollarSign, User, 
-  ChevronLeft, ChevronRight, Image as ImageIcon, 
-  ArrowRight, CheckCircle, XCircle, AlertCircle, Calendar 
+import {
+  Search, Tag, Clock, DollarSign, User,
+  ChevronLeft, ChevronRight, Image as ImageIcon,
+  ArrowRight, CheckCircle, XCircle, AlertCircle, Calendar,
+  Gavel, LayoutGrid, Trophy
 } from 'lucide-react';
 
 const Home = () => {
   const { user, loading } = useAuth();
   const [searchParams] = useSearchParams();
-  
+
   const initialSearch = searchParams.get('search') || '';
   const [inputValue, setInputValue] = useState(initialSearch);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
-  
+
   const [items, setItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
   const [category, setCategory] = useState('');
-  
+
   // Default to 'active' which backend now interprets as Active + Upcoming
-  const [status, setStatus] = useState('active'); 
-  
+  const [status, setStatus] = useState('active');
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [hasNext, setHasNext] = useState(false);
   const [hasPrev, setHasPrev] = useState(false);
-  
+
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -52,7 +53,7 @@ const Home = () => {
         category: category,
         status: status
       });
-      
+
       const response = await api.get(`/items?${params}`);
       setItems(response.data.items);
       setTotalPages(response.data.pagination.total);
@@ -64,7 +65,7 @@ const Home = () => {
       setLoadingItems(false);
     }
   }, [currentPage, searchTerm, category, status]);
-  
+
   const debouncedUpdate = useCallback(
     debounce((value) => {
       setSearchTerm(value);
@@ -90,27 +91,22 @@ const Home = () => {
     setCurrentPage(1);
   };
 
-  const handleStatusChange = (e) => {
-    setStatus(e.target.value);
-    setCurrentPage(1);
-  };
-
   // --- DYNAMIC TIMER LOGIC ---
   const formatTimer = (item) => {
     const now = new Date();
     const start = item.startTime ? new Date(item.startTime) : new Date();
     const end = new Date(item.endTime);
-    
+
     // UPCOMING: Check STRICTLY against time
     if (now < start) {
-        const diff = start - now;
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        
-        if (days > 0) return `Starts: ${days}d ${hours}h ${minutes}m ${seconds}s`;
-        return `Starts: ${hours}h ${minutes}m ${seconds}s`;
+      const diff = start - now;
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (days > 0) return `Starts: ${days}d ${hours}h ${minutes}m ${seconds}s`;
+      return `Starts: ${hours}h ${minutes}m ${seconds}s`;
     }
 
     // ACTIVE:
@@ -131,15 +127,15 @@ const Home = () => {
     const now = new Date();
     const start = new Date(item.startTime);
     const end = new Date(item.endTime);
-    
+
     // 1. Check if actually Upcoming (Future Start)
     if (now < start) {
-        return (
-          <span className="flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-200 shadow-sm backdrop-blur-md">
-            <Calendar className="w-3 h-3" /> Upcoming
-          </span>
-        );
-    } 
+      return (
+        <span className="flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-200 shadow-sm backdrop-blur-md">
+          <Calendar className="w-3 h-3" /> Upcoming
+        </span>
+      );
+    }
     // 2. Check if Sold/Closed/Expired
     else if (item.status === 'sold') {
       return (
@@ -159,7 +155,7 @@ const Home = () => {
           <Clock className="w-3 h-3" /> Expired
         </span>
       );
-    } 
+    }
     // 3. Otherwise, it is Active
     else {
       return (
@@ -173,7 +169,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-gray-50/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+
         {/* Hero Section */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 md:p-12 mb-8 text-center bg-[url('https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&q=80')] bg-cover bg-center relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/90 to-purple-900/90 backdrop-blur-[2px]"></div>
@@ -189,8 +185,8 @@ const Home = () => {
 
         {/* Filters & Search Bar */}
         <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-8 sticky top-4 z-20 transition-shadow hover:shadow-md">
-          <form onSubmit={(e) => e.preventDefault()} className="flex flex-col md:flex-row gap-4 items-center">
-            
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+
             {/* Search Input */}
             <div className="relative flex-1 w-full">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -205,54 +201,83 @@ const Home = () => {
               />
             </div>
 
-            {/* Dropdowns */}
-            <div className="flex gap-4 w-full md:w-auto">
-              <div className="relative w-full md:w-48">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Tag className="h-4 w-4 text-gray-500" />
-                </div>
-                <select
-                  value={category}
-                  onChange={handleCategoryChange}
-                  className="block w-full pl-9 pr-8 py-2.5 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg bg-gray-50 hover:bg-white shadow-sm cursor-pointer transition-colors"
-                >
-                  <option value="">All Categories</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Fashion">Fashion</option>
-                  <option value="Home & Garden">Home & Garden</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Books">Books</option>
-                  <option value="Collectibles">Collectibles</option>
-                  <option value="Art">Art</option>
-                  <option value="Jewelry">Jewelry</option>
-                  <option value="Automotive">Automotive</option>
-                  <option value="Other">Other</option>
-                </select>
+            {/* Category Dropdown */}
+            <div className="relative w-full md:w-48">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Tag className="h-4 w-4 text-gray-500" />
               </div>
-
-              <div className="relative w-full md:w-48">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Filter className="h-4 w-4 text-gray-500" />
-                </div>
-                <select
-                  value={status}
-                  onChange={handleStatusChange}
-                  className="block w-full pl-9 pr-8 py-2.5 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg bg-gray-50 hover:bg-white shadow-sm cursor-pointer transition-colors"
-                >
-                  <option value="active">Active & Upcoming</option>
-                  <option value="ended">Ended</option>
-                  <option value="">All Status</option>
-                </select>
-              </div>
+              <select
+                value={category}
+                onChange={handleCategoryChange}
+                className="block w-full pl-9 pr-8 py-2.5 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg bg-gray-50 hover:bg-white shadow-sm cursor-pointer transition-colors"
+              >
+                <option value="">All Categories</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Fashion">Fashion</option>
+                <option value="Home & Garden">Home & Garden</option>
+                <option value="Sports">Sports</option>
+                <option value="Books">Books</option>
+                <option value="Collectibles">Collectibles</option>
+                <option value="Art">Art</option>
+                <option value="Jewelry">Jewelry</option>
+                <option value="Automotive">Automotive</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
-          </form>
+          </div>
+
+          {/* Status Tabs */}
+          <div className="flex items-center gap-2 mt-4 border-t border-gray-100 pt-4">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider mr-2 hidden sm:block">Filter:</span>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => { setStatus('active'); setCurrentPage(1); }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${status === 'active'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 scale-[1.02]'
+                  : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+                  }`}
+              >
+                <Gavel className="w-3.5 h-3.5" />
+                Active & Upcoming
+              </button>
+
+              <button
+                onClick={() => { setStatus('ended'); setCurrentPage(1); }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${status === 'ended'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 scale-[1.02]'
+                  : 'bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-600'
+                  }`}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                Ended Auctions
+              </button>
+
+              <button
+                onClick={() => { setStatus(''); setCurrentPage(1); }}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${status === ''
+                  ? 'bg-gray-800 text-white shadow-md shadow-gray-300 scale-[1.02]'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                  }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                All Items
+              </button>
+            </div>
+
+            {/* Active tab indicator label */}
+            <span className="ml-auto text-xs text-gray-400 font-medium hidden md:block">
+              {status === 'active' && 'Showing live & upcoming auctions'}
+              {status === 'ended' && 'Showing completed auctions'}
+              {status === '' && 'Showing all items'}
+            </span>
+          </div>
         </div>
 
         {/* Content Area */}
         {loadingItems ? (
           <div className="flex flex-col justify-center items-center h-64 space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600"></div>
-              <p className="text-gray-500 font-medium animate-pulse">Finding treasures...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600"></div>
+            <p className="text-gray-500 font-medium animate-pulse">Finding treasures...</p>
           </div>
         ) : (
           <>
@@ -269,8 +294,8 @@ const Home = () => {
                 </div>
               ) : (
                 items.map(item => (
-                  <Link 
-                    key={item._id} 
+                  <Link
+                    key={item._id}
                     to={`/item/${item._id}`}
                     className="group bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full animate-fadeIn"
                   >
@@ -288,7 +313,7 @@ const Home = () => {
                           <span className="text-sm font-medium">No Image</span>
                         </div>
                       )}
-                      
+
                       {/* Floating Badges - DYNAMICALLY SET */}
                       <div className="absolute top-3 right-3 z-10">
                         {getStatusBadge(item)}
@@ -297,7 +322,7 @@ const Home = () => {
                         <Tag className="w-3 h-3 text-indigo-500" />
                         {item.category}
                       </div>
-                      
+
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 pointer-events-none" />
                     </div>
 
@@ -316,7 +341,7 @@ const Home = () => {
                         <div className="flex justify-between items-end border-t border-gray-100 pt-4">
                           <div>
                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">
-                                {new Date() < new Date(item.startTime) ? 'Starting Bid' : 'Current Bid'}
+                              {new Date() < new Date(item.startTime) ? 'Starting Bid' : 'Current Bid'}
                             </p>
                             <div className="flex items-center gap-1 text-indigo-600 font-extrabold text-xl">
                               <DollarSign className="w-5 h-5" strokeWidth={3} />
@@ -324,17 +349,16 @@ const Home = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                             <div className={`flex items-center justify-end gap-1 text-sm font-bold ${
-                                new Date() < new Date(item.startTime)
-                                  ? 'text-blue-600' 
-                                  : new Date(item.endTime) < new Date() ? 'text-gray-400' : 'text-amber-600'
-                             }`}>
-                               <Clock className="w-3.5 h-3.5" strokeWidth={2.5} />
-                               {formatTimer(item)}
-                             </div>
-                             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                {new Date() < new Date(item.startTime) ? 'Starts In' : 'Time Left'}
-                             </p>
+                            <div className={`flex items-center justify-end gap-1 text-sm font-bold ${new Date() < new Date(item.startTime)
+                              ? 'text-blue-600'
+                              : new Date(item.endTime) < new Date() ? 'text-gray-400' : 'text-amber-600'
+                              }`}>
+                              <Clock className="w-3.5 h-3.5" strokeWidth={2.5} />
+                              {formatTimer(item)}
+                            </div>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                              {new Date() < new Date(item.startTime) ? 'Starts In' : 'Time Left'}
+                            </p>
                           </div>
                         </div>
 
@@ -345,7 +369,7 @@ const Home = () => {
                             </div>
                             <span className="truncate max-w-[100px] font-medium">{item.seller?.name || 'Unknown'}</span>
                           </div>
-                          
+
                           <span className="text-indigo-600 text-xs font-bold flex items-center gap-1 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
                             View Details <ArrowRight className="w-3.5 h-3.5" />
                           </span>
@@ -367,11 +391,11 @@ const Home = () => {
                 >
                   <ChevronLeft className="w-4 h-4" /> Previous
                 </button>
-                
+
                 <span className="px-4 py-2 text-gray-600 font-medium bg-white border border-gray-200 rounded-lg shadow-sm">
                   Page <span className="text-indigo-600 font-bold">{currentPage}</span> of {totalPages}
                 </span>
-                
+
                 <button
                   onClick={() => setCurrentPage(currentPage + 1)}
                   disabled={!hasNext}

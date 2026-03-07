@@ -47,7 +47,11 @@ const Chatbot = () => {
             setMessages(prev => [...prev, botMessage]);
         } catch (error) {
             console.error('Chat error:', error);
-            setMessages(prev => [...prev, { sender: 'assistant', text: 'Sorry, I am having trouble connecting right now.' }]);
+            const isQuota = error.response?.status === 429;
+            const errMsg = isQuota
+                ? '⚠️ AI quota exceeded. Please wait a moment and try again.'
+                : 'Sorry, I am having trouble connecting right now.';
+            setMessages(prev => [...prev, { sender: 'assistant', text: errMsg }]);
         } finally {
             setLoading(false);
         }

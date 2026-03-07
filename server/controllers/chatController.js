@@ -142,13 +142,38 @@ const toolFunctions = {
 };
 
 
+// Retry helper: retries fn up to maxRetries times on 429 quota errors
+const withRetry = async (fn, maxRetries = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (err) {
+            const isQuota = err.status === 429;
+            if (!isQuota || attempt === maxRetries) throw err;
+
+            // Extract retryDelay from API response (e.g., "2s" -> 2000ms), fallback to exponential
+            let delayMs = Math.pow(2, attempt) * 1000;
+            try {
+                const retryInfo = err.errorDetails?.find(d => d['@type']?.includes('RetryInfo'));
+                if (retryInfo?.retryDelay) {
+                    const seconds = parseFloat(retryInfo.retryDelay);
+                    if (!isNaN(seconds)) delayMs = seconds * 1000 + 500; // +500ms buffer
+                }
+            } catch (_) { /* use fallback */ }
+
+            console.warn(`Gemini 429 quota hit. Retrying in ${delayMs}ms (attempt ${attempt}/${maxRetries - 1})...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+};
+
 exports.chat = async (req, res) => {
     try {
         const { message, history } = req.body;
         const userId = req.user._id;
 
         const model = genAI.getGenerativeModel({
-            model: "gemini-pro",
+            model: "gemini-2.0-flash-lite",
             tools: toolsDefinition,
             systemInstruction: `You are the "BidCycle AI Assistant," an intelligent auction expert.
 Your goal is to help users find items, compare products, place bids, and strategize.
@@ -168,7 +193,7 @@ If user wants to bid but details missing, ASK them.
             history: chatHistory,
         });
 
-        const result = await chat.sendMessage(message);
+        const result = await withRetry(() => chat.sendMessage(message));
         const response = await result.response;
         const functionCalls = response.functionCalls();
 
@@ -199,7 +224,7 @@ If user wants to bid but details missing, ASK them.
             }
 
             // Send tool outputs back to model
-            const finalResult = await chat.sendMessage(functionResponses);
+            const finalResult = await withRetry(() => chat.sendMessage(functionResponses));
             return res.json({ response: finalResult.response.text() });
         }
 
@@ -208,6 +233,11 @@ If user wants to bid but details missing, ASK them.
 
     } catch (error) {
         console.error("Gemini Chat Error:", error);
+        if (error.status === 429) {
+            return res.status(429).json({
+                message: "AI quota exceeded. Please wait a moment and try again."
+            });
+        }
         res.status(500).json({ message: "AI services unavailable." });
     }
 };

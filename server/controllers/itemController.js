@@ -15,13 +15,13 @@ const sendAuctionResultEmails = async (item, winningBid) => {
     // Loop through bidders and send appropriate email
     for (const bidder of uniqueBidders) {
       const isWinner = bidder.email === winnerEmail;
-      
+
       let subject, html, text;
 
       if (isWinner) {
         subject = `🎉 You Won! - ${item.title}`;
         text = `Congratulations! You won the auction for ${item.title} for $${winningBid.amount}.`;
-        
+
         const content = `
           <p>Congratulations, <strong>${bidder.name}</strong>!</p>
           <p>You are the winning bidder for <span class="highlight">${item.title}</span>.</p>
@@ -35,7 +35,7 @@ const sendAuctionResultEmails = async (item, winningBid) => {
         `;
 
         const actionBtn = `<a href="${process.env.FRONTEND_URL || '#'}/items/${item._id}" class="btn">View Item Details</a>`;
-        
+
         html = getStyledHtml('You Won the Auction! 🎉', content, actionBtn);
 
       } else {
@@ -91,12 +91,12 @@ const checkAndProcessAuctionStatus = async (item) => {
       item.status = 'sold';
       item.winner = highestBid.bidder._id;
       item.currentBid = highestBid.amount;
-      
-      await item.save(); 
+
+      await item.save();
       updated = false;
 
       // Send emails
-      sendAuctionResultEmails(item, highestBid).catch(err => 
+      sendAuctionResultEmails(item, highestBid).catch(err =>
         console.error('Email sending failed:', err)
       );
     } else {
@@ -112,11 +112,11 @@ const checkAndProcessAuctionStatus = async (item) => {
 
 exports.addItem = async (req, res) => {
   try {
-    const { 
-      title, description, category, basePrice, 
-      auctionDuration, customEndTime, scheduleType, customStartTime 
+    const {
+      title, description, category, basePrice,
+      auctionDuration, customEndTime, scheduleType, customStartTime
     } = req.body;
-    
+
     let imageUrls = [];
     if (req.files && req.files.length > 0) imageUrls = req.files.map(file => file.path);
 
@@ -143,7 +143,7 @@ exports.addItem = async (req, res) => {
       finalDuration = parseFloat(auctionDuration) || 24;
       endTime = new Date(startTime.getTime() + finalDuration * 60 * 60 * 1000);
     }
-    
+
     const item = await Item.create({
       seller: req.user._id,
       title, description, category,
@@ -154,7 +154,7 @@ exports.addItem = async (req, res) => {
       endTime,
       status
     });
-    
+
     await item.populate('seller', 'name email');
     res.status(201).json(item);
   } catch (error) {
@@ -167,7 +167,7 @@ exports.getAllItems = async (req, res) => {
   try {
     const { category, status, search, page = 1, limit = 12 } = req.query;
     let query = {};
-    
+
     if (category) query.category = category;
     if (search) query.title = { $regex: search, $options: 'i' };
 
@@ -180,18 +180,19 @@ exports.getAllItems = async (req, res) => {
       await checkAndProcessAuctionStatus(item);
     }
 
-    if (status) {
-        if (status === 'active') items = items.filter(i => ['active', 'upcoming'].includes(i.status));
-        else if (status === 'ended') items = items.filter(i => ['sold', 'closed', 'expired'].includes(i.status));
-        else items = items.filter(i => i.status === status);
-    } else {
-        items = items.filter(i => ['active', 'upcoming'].includes(i.status));
+    if (status === 'active') {
+      items = items.filter(i => ['active', 'upcoming'].includes(i.status));
+    } else if (status === 'ended') {
+      items = items.filter(i => ['sold', 'closed', 'expired'].includes(i.status));
+    } else if (status) {
+      items = items.filter(i => i.status === status);
     }
+    // If status is empty string or not provided → return ALL items (no filter)
 
     const total = items.length;
     const startIndex = (page - 1) * limit;
     const paginatedItems = items.slice(startIndex, startIndex + parseInt(limit));
-    
+
     res.json({
       items: paginatedItems,
       pagination: {
@@ -229,97 +230,97 @@ exports.getMyItems = async (req, res) => {
 };
 
 exports.editItem = async (req, res) => {
-    try {
-      const item = await Item.findById(req.params.id);
-      if (!item) return res.status(404).json({ message: 'Item not found.' });
-      if (item.seller.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden.' });
-      
-      const bidCount = await Bid.countDocuments({ item: item._id });
-      if (bidCount > 0) return res.status(400).json({ message: 'Cannot edit item with bids.' });
-      if (item.endTime <= new Date()) return res.status(400).json({ message: 'Cannot edit ended auction.' });
-      
-      const { title, description, category, images, basePrice, auctionDuration } = req.body;
-      
-      if (title) item.title = title;
-      if (description) item.description = description;
-      if (category) item.category = category;
-      if (images) item.images = images;
-      if (basePrice && basePrice > 0) {
-        item.basePrice = basePrice;
-        item.currentBid = basePrice;
-      }
-      if (auctionDuration && auctionDuration > 0 && auctionDuration <= 720) {
-        item.auctionDuration = auctionDuration;
-        item.endTime = new Date(Date.now() + auctionDuration * 60 * 60 * 1000);
-      }
-      
-      await item.save();
-      await item.populate('seller', 'name email');
-      res.json(item);
-    } catch (error) {
-      console.error('Edit item error:', error);
-      res.status(500).json({ message: 'Server error.' });
+  try {
+    const item = await Item.findById(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Item not found.' });
+    if (item.seller.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden.' });
+
+    const bidCount = await Bid.countDocuments({ item: item._id });
+    if (bidCount > 0) return res.status(400).json({ message: 'Cannot edit item with bids.' });
+    if (item.endTime <= new Date()) return res.status(400).json({ message: 'Cannot edit ended auction.' });
+
+    const { title, description, category, images, basePrice, auctionDuration } = req.body;
+
+    if (title) item.title = title;
+    if (description) item.description = description;
+    if (category) item.category = category;
+    if (images) item.images = images;
+    if (basePrice && basePrice > 0) {
+      item.basePrice = basePrice;
+      item.currentBid = basePrice;
     }
+    if (auctionDuration && auctionDuration > 0 && auctionDuration <= 720) {
+      item.auctionDuration = auctionDuration;
+      item.endTime = new Date(Date.now() + auctionDuration * 60 * 60 * 1000);
+    }
+
+    await item.save();
+    await item.populate('seller', 'name email');
+    res.json(item);
+  } catch (error) {
+    console.error('Edit item error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
 };
-  
+
 exports.deleteItem = async (req, res) => {
-    try {
-      const item = await Item.findById(req.params.id);
-      if (!item) return res.status(404).json({ message: 'Item not found.' });
-      if (item.seller.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden.' });
-      
-      const bidCount = await Bid.countDocuments({ item: item._id });
-      if (bidCount > 0) return res.status(400).json({ message: 'Cannot delete item with bids.' });
-      
-      await Item.findByIdAndDelete(req.params.id);
-      res.json({ message: 'Item deleted successfully.' });
-    } catch (error) {
-      console.error('Delete item error:', error);
-      res.status(500).json({ message: 'Server error.' });
-    }
+  try {
+    const item = await Item.findById(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Item not found.' });
+    if (item.seller.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden.' });
+
+    const bidCount = await Bid.countDocuments({ item: item._id });
+    if (bidCount > 0) return res.status(400).json({ message: 'Cannot delete item with bids.' });
+
+    await Item.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Item deleted successfully.' });
+  } catch (error) {
+    console.error('Delete item error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
 };
 
 exports.getBidHistory = async (req, res) => {
-    try {
-      const item = await Item.findById(req.params.id);
-      if (!item) return res.status(404).json({ message: 'Item not found.' });
-      if (item.seller.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden.' });
-      
-      const bids = await Bid.find({ item: item._id }).populate('bidder', 'name email').sort({ createdAt: -1 });
-      res.json(bids);
-    } catch (error) {
-      console.error('Get bid history error:', error);
-      res.status(500).json({ message: 'Server error.' });
-    }
+  try {
+    const item = await Item.findById(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Item not found.' });
+    if (item.seller.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden.' });
+
+    const bids = await Bid.find({ item: item._id }).populate('bidder', 'name email').sort({ createdAt: -1 });
+    res.json(bids);
+  } catch (error) {
+    console.error('Get bid history error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
 };
 
 exports.getItemBids = async (req, res) => {
-    try {
-      const bids = await Bid.find({ item: req.params.id }).populate('bidder', 'name email').sort({ createdAt: -1 });
-      res.json(bids);
-    } catch (error) {
-      console.error('Get item bids error:', error);
-      res.status(500).json({ message: 'Server error.' });
-    }
-}; 
-  
+  try {
+    const bids = await Bid.find({ item: req.params.id }).populate('bidder', 'name email').sort({ createdAt: -1 });
+    res.json(bids);
+  } catch (error) {
+    console.error('Get item bids error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
+};
+
 exports.uploadImages = async (req, res) => {
-      try {
-        const item = await Item.findById(req.params.id);
-        if (!item) return res.status(404).json({ message: 'Item not found.' });
-        if (item.seller.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden.' });
-    
-        upload.array('images', 5)(req, res, async (err) => {
-          if (err) return res.status(400).json({ message: err.message });
-          if (!req.files || req.files.length === 0) return res.status(400).json({ message: 'No images uploaded.' });
-          
-          const imageUrls = req.files.map(file => file.path);
-          item.images = [...item.images, ...imageUrls];
-          await item.save();
-          res.json({ message: 'Images uploaded successfully.', images: item.images });
-        });
-      } catch (error) {
-        console.error('Upload images error:', error);
-        res.status(500).json({ message: 'Server error.' });
-      }
+  try {
+    const item = await Item.findById(req.params.id);
+    if (!item) return res.status(404).json({ message: 'Item not found.' });
+    if (item.seller.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden.' });
+
+    upload.array('images', 5)(req, res, async (err) => {
+      if (err) return res.status(400).json({ message: err.message });
+      if (!req.files || req.files.length === 0) return res.status(400).json({ message: 'No images uploaded.' });
+
+      const imageUrls = req.files.map(file => file.path);
+      item.images = [...item.images, ...imageUrls];
+      await item.save();
+      res.json({ message: 'Images uploaded successfully.', images: item.images });
+    });
+  } catch (error) {
+    console.error('Upload images error:', error);
+    res.status(500).json({ message: 'Server error.' });
+  }
 };
