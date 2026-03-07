@@ -1,10 +1,9 @@
- const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 const multer = require('multer');
 
-// Load environment variables
 dotenv.config();
 
 const connectDB = require('./config/db');
@@ -27,6 +26,7 @@ app.use('/api/seller', require('./routes/seller'));
 app.use('/api/items', require('./routes/items'));
 app.use('/api/bids', require('./routes/bids'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/chat', require('./routes/chat'));
 
 app.get('/', (req, res) => {
   res.send('Online Auction API is running');
