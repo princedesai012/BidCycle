@@ -1,19 +1,346 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Package, 
-  Gavel, 
-  ChevronDown, 
-  LogOut, 
-  User as UserIcon, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Users,
+  Package,
+  Gavel,
+  ChevronDown,
+  LogOut,
+  User as UserIcon,
   ShoppingBag,
   PlusCircle,
-  List
+  List,
 } from 'lucide-react';
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+  .bc-nav * { box-sizing: border-box; }
+
+  .bc-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(200,169,110,0.15);
+  }
+
+  /* subtle top shimmer line */
+  .bc-nav::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(200,169,110,0.5) 40%, rgba(200,169,110,0.5) 60%, transparent);
+  }
+
+  .bc-nav-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+
+  /* ── Logo ── */
+  .bc-nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .bc-nav-logo-icon {
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #c8a96e, #a07840);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(200,169,110,0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .bc-nav-logo:hover .bc-nav-logo-icon {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(200,169,110,0.4);
+  }
+  .bc-nav-logo-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #e8d5a3;
+  }
+  .bc-nav-logo-text span { color: #c8a96e; font-style: italic; }
+
+  /* ── Center nav links ── */
+  .bc-nav-links {
+    display: none;
+    align-items: center;
+    gap: 2px;
+  }
+  @media (min-width: 768px) { .bc-nav-links { display: flex; } }
+
+  .bc-nav-link {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: rgba(220,215,205,0.6);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .bc-nav-link:hover {
+    color: #e8d5a3;
+    background: rgba(200,169,110,0.08);
+  }
+
+  /* Admin dropdown trigger */
+  .bc-nav-dropdown { position: relative; }
+  .bc-nav-dropdown-btn {
+    padding: 6px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: rgba(220,215,205,0.6);
+    background: none;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .bc-nav-dropdown-btn:hover,
+  .bc-nav-dropdown:hover .bc-nav-dropdown-btn {
+    color: #e8d5a3;
+    background: rgba(200,169,110,0.08);
+  }
+  .bc-nav-chevron {
+    transition: transform 0.25s;
+  }
+  .bc-nav-dropdown:hover .bc-nav-chevron { transform: rotate(180deg); }
+
+  /* Dropdown panel */
+  .bc-nav-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%; transform: translateX(-50%) scaleY(0.95);
+    transform-origin: top center;
+    width: 220px;
+    background: #13121a;
+    border: 1px solid rgba(200,169,110,0.18);
+    border-radius: 14px;
+    padding: 6px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+    box-shadow: 0 20px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .bc-nav-dropdown:hover .bc-nav-dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) scaleY(1);
+  }
+
+  .bc-nav-dropdown-label {
+    padding: 8px 12px 6px;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(200,169,110,0.45);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 4px;
+  }
+
+  .bc-nav-dropdown-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: rgba(220,215,205,0.65);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+  }
+  .bc-nav-dropdown-item:hover {
+    color: #e8d5a3;
+    background: rgba(200,169,110,0.1);
+  }
+  .bc-nav-dropdown-item svg { color: rgba(200,169,110,0.6); flex-shrink: 0; }
+  .bc-nav-dropdown-item:hover svg { color: #c8a96e; }
+
+  /* ── Right side: avatar + profile dropdown ── */
+  .bc-nav-right { display: flex; align-items: center; gap: 12px; }
+
+  .bc-nav-avatar-wrap { position: relative; }
+  .bc-nav-avatar-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: none; border: none; cursor: pointer; padding: 3px;
+    border-radius: 999px;
+    transition: background 0.2s;
+  }
+  .bc-nav-avatar-btn:hover { background: rgba(200,169,110,0.08); }
+
+  .bc-nav-avatar-ring {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c8a96e, #7c5c2a);
+    padding: 1.5px;
+    flex-shrink: 0;
+  }
+  .bc-nav-avatar-inner {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background: #1a1625;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .bc-nav-avatar-initial {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 15px; font-weight: 600;
+    color: #c8a96e;
+  }
+  .bc-nav-avatar-chevron {
+    color: rgba(200,195,185,0.4);
+    transition: transform 0.25s, color 0.2s;
+  }
+  .bc-nav-avatar-wrap:hover .bc-nav-avatar-chevron {
+    transform: rotate(180deg);
+    color: #c8a96e;
+  }
+
+  /* Profile dropdown */
+  .bc-nav-profile-menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 240px;
+    background: #13121a;
+    border: 1px solid rgba(200,169,110,0.18);
+    border-radius: 14px;
+    padding: 6px;
+    opacity: 0;
+    visibility: hidden;
+    transform: scaleY(0.95);
+    transform-origin: top right;
+    transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+    box-shadow: 0 20px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .bc-nav-avatar-wrap:hover .bc-nav-profile-menu {
+    opacity: 1; visibility: visible;
+    transform: scaleY(1);
+  }
+
+  .bc-nav-profile-header {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 4px;
+  }
+  .bc-nav-profile-name {
+    font-size: 13px; font-weight: 500;
+    color: #e8d5a3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bc-nav-profile-email {
+    font-size: 11px;
+    color: rgba(200,195,185,0.4);
+    margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .bc-nav-profile-badge {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #c8a96e;
+    background: rgba(200,169,110,0.12);
+    border: 1px solid rgba(200,169,110,0.25);
+    border-radius: 999px;
+  }
+
+  .bc-nav-profile-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: rgba(220,215,205,0.65);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+    width: 100%;
+    background: none; border: none; cursor: pointer; text-align: left;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .bc-nav-profile-item:hover {
+    color: #e8d5a3;
+    background: rgba(200,169,110,0.08);
+  }
+  .bc-nav-profile-item svg { color: rgba(200,169,110,0.55); flex-shrink: 0; }
+  .bc-nav-profile-item:hover svg { color: #c8a96e; }
+
+  .bc-nav-profile-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 4px 0;
+  }
+
+  .bc-nav-profile-item--danger { color: rgba(248,113,113,0.7); }
+  .bc-nav-profile-item--danger svg { color: rgba(248,113,113,0.6); }
+  .bc-nav-profile-item--danger:hover {
+    color: #f87171;
+    background: rgba(220,60,60,0.1);
+  }
+  .bc-nav-profile-item--danger:hover svg { color: #f87171; }
+
+  /* ── Guest buttons ── */
+  .bc-nav-signin {
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    color: rgba(220,215,205,0.55);
+    text-decoration: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+    display: none;
+  }
+  @media (min-width: 480px) { .bc-nav-signin { display: block; } }
+  .bc-nav-signin:hover { color: #e8d5a3; background: rgba(200,169,110,0.08); }
+
+  .bc-nav-cta {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #0a0a0f;
+    text-decoration: none;
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #c8a96e, #a07840);
+    box-shadow: 0 4px 14px rgba(200,169,110,0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .bc-nav-cta::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .bc-nav-cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(200,169,110,0.4);
+  }
+  .bc-nav-cta:hover::before { opacity: 1; }
+`;
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -25,201 +352,130 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-white shadow-lg border-b sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Decreased py-4 to py-2 for smaller height */}
-        <div className="flex justify-between items-center py-3">
-          {/* Logo */}
-          <Link to={user ? "/market" : "/"} className="flex items-center gap-2 group">
-            <div className="bg-indigo-600 p-1.5 rounded-lg group-hover:bg-indigo-700 transition-colors">
-              <Gavel className="w-6 h-6 text-white" />
+    <>
+      <style>{styles}</style>
+      <nav className="bc-nav">
+        <div className="bc-nav-inner">
+
+          {/* ── Logo ── */}
+          <Link to={user ? '/market' : '/'} className="bc-nav-logo">
+            <div className="bc-nav-logo-icon">
+              <Gavel size={16} color="#0a0a0f" strokeWidth={2.5} />
             </div>
-            <span className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-              BidCycle
-            </span>
+            <span className="bc-nav-logo-text">Bid<span>Cycle</span></span>
           </Link>
 
-          {/* Navigation Links */}
+          {/* ── Nav links (logged in) ── */}
           {user ? (
             <>
-              <div className="hidden md:flex items-center space-x-1">
-                <Link
-                  to="/market"
-                  className="px-4 py-2 text-gray-600 hover:text-indigo-600 font-medium rounded-lg hover:bg-gray-50 transition-all"
-                >
-                  Marketplace
-                </Link>
+              <div className="bc-nav-links">
+                <Link to="/market" className="bc-nav-link">Marketplace</Link>
 
-                {/* Seller Links */}
                 {user.role === 'Seller' && (
-                  <>
-                    <Link
-                      to="/create-item"
-                      className="px-4 py-2 text-gray-600 hover:text-indigo-600 font-medium rounded-lg hover:bg-gray-50 transition-all flex items-center gap-2"
-                    >
-                      <PlusCircle className="w-4 h-4" />
-                      Sell Item
-                    </Link>
-                  </>
-                )}
-
-                {/* Buyer/Seller Dashboard (Non-Admin) */}
-                {user.role !== 'Admin' && (
-                  <Link
-                    to="/dashboard"
-                    className="px-4 py-2 text-gray-600 hover:text-indigo-600 font-medium rounded-lg hover:bg-gray-50 transition-all"
-                  >
-                    Dashboard
+                  <Link to="/create-item" className="bc-nav-link">
+                    <PlusCircle size={14} /> Sell Item
                   </Link>
                 )}
 
-                {/* --- Admin Dropdown --- */}
+                {user.role !== 'Admin' && (
+                  <Link to="/dashboard" className="bc-nav-link">Dashboard</Link>
+                )}
+
                 {user.role === 'Admin' && (
-                  <div className="relative group px-2">
-                    <button className="flex items-center space-x-1 px-4 py-2 text-gray-600 hover:text-indigo-600 font-medium rounded-lg hover:bg-gray-50 transition-all focus:outline-none">
-                      <span>Admin Panel</span>
-                      <ChevronDown className="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" />
+                  <div className="bc-nav-dropdown">
+                    <button className="bc-nav-dropdown-btn">
+                      Admin Panel
+                      <ChevronDown size={14} className="bc-nav-chevron" />
                     </button>
-                    
-                    {/* Dropdown Menu */}
-                    <div className="absolute left-1/2 -translate-x-1/2 mt-2 w-60 bg-white rounded-xl shadow-xl py-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-100 transform origin-top-center scale-95 group-hover:scale-100">
-                      
-                      <div className="px-4 py-2 border-b border-gray-100 mb-1">
-                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Administration</span>
-                      </div>
-
-                      <Link
-                        to="/admin"
-                        className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors mx-2 rounded-md"
-                      >
-                        <LayoutDashboard className="w-4 h-4 mr-3" />
-                        Dashboard Overview
+                    <div className="bc-nav-dropdown-menu">
+                      <div className="bc-nav-dropdown-label">Administration</div>
+                      <Link to="/admin" className="bc-nav-dropdown-item">
+                        <LayoutDashboard size={14} /> Dashboard Overview
                       </Link>
-                      
-                      <Link
-                        to="/admin/users"
-                        className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors mx-2 rounded-md"
-                      >
-                        <Users className="w-4 h-4 mr-3" />
-                        Manage Users
+                      <Link to="/admin/users" className="bc-nav-dropdown-item">
+                        <Users size={14} /> Manage Users
                       </Link>
-
-                      <Link
-                        to="/admin/items"
-                        className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors mx-2 rounded-md"
-                      >
-                        <Package className="w-4 h-4 mr-3" />
-                        Manage Items
+                      <Link to="/admin/items" className="bc-nav-dropdown-item">
+                        <Package size={14} /> Manage Items
                       </Link>
-
-                      <Link
-                        to="/admin/bids"
-                        className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors mx-2 rounded-md"
-                      >
-                        <Gavel className="w-4 h-4 mr-3" />
-                        Manage Bids
+                      <Link to="/admin/bids" className="bc-nav-dropdown-item">
+                        <Gavel size={14} /> Manage Bids
                       </Link>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* User Info & Profile Dropdown */}
-              <div className="flex items-center space-x-4 pl-4">
-                <div className="relative group">
-                  <button className="flex items-center space-x-2 focus:outline-none p-1 rounded-full hover:bg-gray-100 transition-colors">
-                    {/* Decreased size from w-10 h-10 to w-9 h-9 */}
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 p-[2px]">
-                       <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
-                          {user.profilePic ? (
-                            <img 
-                              src={user.profilePic} 
-                              alt={user.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-indigo-600 font-bold text-lg">
-                              {user.name.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                       </div>
+              {/* ── Avatar + Profile dropdown ── */}
+              <div className="bc-nav-right">
+                <div className="bc-nav-avatar-wrap">
+                  <button className="bc-nav-avatar-btn">
+                    <div className="bc-nav-avatar-ring">
+                      <div className="bc-nav-avatar-inner">
+                        {user.profilePic ? (
+                          <img
+                            src={user.profilePic}
+                            alt={user.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <span className="bc-nav-avatar-initial">
+                            {user.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                    <ChevronDown size={14} className="bc-nav-avatar-chevron" />
                   </button>
 
-                  {/* Profile Dropdown Menu */}
-                  <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl py-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-100 transform origin-top-right scale-95 group-hover:scale-100">
-                    <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{user.email}</p>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 mt-2">
-                        {user.role} Account
-                      </span>
+                  <div className="bc-nav-profile-menu">
+                    <div className="bc-nav-profile-header">
+                      <div className="bc-nav-profile-name">{user.name}</div>
+                      <div className="bc-nav-profile-email">{user.email}</div>
+                      <span className="bc-nav-profile-badge">{user.role} Account</span>
                     </div>
 
-                    <div className="py-2">
-                      <Link
-                        to={user.role === 'Admin' ? '/admin-account' : '/account'}
-                        className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors mx-2 rounded-md"
-                      >
-                        <UserIcon className="w-4 h-4 mr-3" />
-                        Profile Settings
+                    <Link
+                      to={user.role === 'Admin' ? '/admin-account' : '/account'}
+                      className="bc-nav-profile-item"
+                    >
+                      <UserIcon size={14} /> Profile Settings
+                    </Link>
+
+                    {user.role === 'Seller' && (
+                      <Link to="/my-items" className="bc-nav-profile-item">
+                        <List size={14} /> My Listings
                       </Link>
+                    )}
 
-                      {user.role === 'Seller' && (
-                         <Link
-                         to="/my-items"
-                         className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors mx-2 rounded-md"
-                       >
-                         <List className="w-4 h-4 mr-3" />
-                         My Listings
-                       </Link>
-                      )}
+                    {user.role !== 'Admin' && user.role !== 'Seller' && (
+                      <Link to="/dashboard" className="bc-nav-profile-item">
+                        <ShoppingBag size={14} /> My Bids &amp; Orders
+                      </Link>
+                    )}
 
-                      {user.role !== 'Admin' && user.role !== 'Seller' && (
-                         <Link
-                         to="/dashboard"
-                         className="flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors mx-2 rounded-md"
-                       >
-                         <ShoppingBag className="w-4 h-4 mr-3" />
-                         My Bids & Orders
-                       </Link>
-                      )}
-                    </div>
+                    <div className="bc-nav-profile-divider" />
 
-                    <div className="border-t border-gray-100 mt-1 pt-1">
-                      <button
-                        onClick={handleLogout}
-                        className="flex w-full items-center px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors mx-2 rounded-md"
-                      >
-                        <LogOut className="w-4 h-4 mr-3" />
-                        Sign Out
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="bc-nav-profile-item bc-nav-profile-item--danger"
+                    >
+                      <LogOut size={14} /> Sign Out
+                    </button>
                   </div>
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/login"
-                className="hidden sm:block px-5 py-2 text-indigo-600 font-medium hover:text-indigo-700 transition"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/register"
-                // Decreased vertical padding to py-2 to match navbar height
-                className="px-5 py-2 bg-indigo-600 text-white font-medium rounded-full shadow-lg hover:bg-indigo-700 hover:shadow-xl transition-all transform hover:-translate-y-0.5"
-              >
-                Get Started
-              </Link>
+            <div className="bc-nav-right">
+              <Link to="/login" className="bc-nav-signin">Sign In</Link>
+              <Link to="/register" className="bc-nav-cta">Get Started</Link>
             </div>
           )}
+
         </div>
-      </div>
-    </nav>
+      </nav>
+    </>
   );
 };
 

@@ -1,30 +1,399 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Trash2, 
-  Edit, 
-  Eye, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  AlertCircle, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Trash2,
+  Edit,
+  Eye,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
   Calendar,
-  Gavel
+  Gavel,
 } from 'lucide-react';
 
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+  .bc-myitems * { box-sizing: border-box; }
+
+  .bc-myitems {
+    min-height: 100vh;
+    background: #0a0a0f;
+    font-family: 'DM Sans', sans-serif;
+    color: #f0ebe0;
+    padding: 40px 24px 72px;
+  }
+  .bc-myitems-inner { max-width: 1280px; margin: 0 auto; }
+
+  /* ── Loading ── */
+  .bc-myitems-loading {
+    min-height: 100vh; background: #0a0a0f;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bc-myitems-spinner {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 2px solid rgba(200,169,110,0.15);
+    border-top-color: #c8a96e;
+    animation: bc-mi-spin 0.8s linear infinite;
+  }
+  @keyframes bc-mi-spin { to { transform: rotate(360deg); } }
+
+  /* ── Header ── */
+  .bc-myitems-header {
+    display: flex; flex-wrap: wrap; align-items: flex-end;
+    justify-content: space-between; gap: 16px;
+    margin-bottom: 36px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid rgba(200,169,110,0.12);
+  }
+  .bc-myitems-eyebrow {
+    font-size: 10px; letter-spacing: 0.35em; text-transform: uppercase;
+    color: #c8a96e; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .bc-myitems-eyebrow::before { content: ''; width: 24px; height: 1px; background: #c8a96e; }
+  .bc-myitems-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(28px, 3.5vw, 42px);
+    font-weight: 300; line-height: 1.1; color: #f5f0e8;
+  }
+  .bc-myitems-title em { font-style: italic; color: #c8a96e; }
+  .bc-myitems-sub {
+    font-size: 13px; color: rgba(200,195,185,0.38);
+    margin-top: 6px; letter-spacing: 0.02em;
+  }
+
+  .bc-myitems-create-btn {
+    position: relative; overflow: hidden;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: #0a0a0f; text-decoration: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #c8a96e, #a07840);
+    box-shadow: 0 6px 20px rgba(200,169,110,0.25);
+    transition: transform 0.2s, box-shadow 0.2s;
+    white-space: nowrap;
+  }
+  .bc-myitems-create-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .bc-myitems-create-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(200,169,110,0.35); }
+  .bc-myitems-create-btn:hover::before { opacity: 1; }
+
+  /* ── Stats ── */
+  .bc-myitems-stats {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  @media (min-width: 640px) { .bc-myitems-stats { grid-template-columns: repeat(3, 1fr); } }
+
+  .bc-myitems-stat {
+    background: #0d0c14;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 20px 22px;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: border-color 0.25s, transform 0.25s;
+  }
+  .bc-myitems-stat:hover { border-color: rgba(200,169,110,0.18); transform: translateY(-2px); }
+  .bc-myitems-stat-label {
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(200,195,185,0.33); margin-bottom: 6px;
+  }
+  .bc-myitems-stat-val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px; font-weight: 300; color: #f5f0e8; line-height: 1;
+  }
+  .bc-myitems-stat-val--gold  { color: #c8a96e; }
+  .bc-myitems-stat-val--green { color: #6ee7b7; }
+  .bc-myitems-stat-val--dim   { color: rgba(200,195,185,0.5); }
+  .bc-myitems-stat-icon {
+    width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(200,169,110,0.07);
+    border: 1px solid rgba(200,169,110,0.18);
+    color: #c8a96e;
+    transition: background 0.25s, box-shadow 0.25s;
+  }
+  .bc-myitems-stat:hover .bc-myitems-stat-icon {
+    background: rgba(200,169,110,0.12);
+    box-shadow: 0 0 14px rgba(200,169,110,0.1);
+  }
+
+  /* ── Filter bar ── */
+  .bc-myitems-filterbar {
+    background: rgba(13,12,20,0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(200,169,110,0.1);
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 28px;
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Tabs */
+  .bc-myitems-tabs { display: flex; gap: 6px; }
+  .bc-myitems-tab {
+    padding: 7px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 400;
+    letter-spacing: 0.06em; text-transform: capitalize;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent;
+    color: rgba(220,215,205,0.45);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .bc-myitems-tab:hover { color: #e8d5a3; border-color: rgba(200,169,110,0.28); background: rgba(200,169,110,0.05); }
+  .bc-myitems-tab--active {
+    background: linear-gradient(135deg, #c8a96e, #a07840);
+    border-color: transparent;
+    color: #0a0a0f; font-weight: 500;
+    box-shadow: 0 4px 14px rgba(200,169,110,0.28);
+  }
+
+  /* Search */
+  .bc-myitems-search-wrap { position: relative; width: 100%; }
+  @media (min-width: 480px) { .bc-myitems-search-wrap { width: 260px; } }
+  .bc-myitems-search-icon {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    color: rgba(200,169,110,0.4); pointer-events: none;
+    transition: color 0.2s;
+  }
+  .bc-myitems-search-wrap:focus-within .bc-myitems-search-icon { color: #c8a96e; }
+  .bc-myitems-search {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 9px 14px 9px 38px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: #f0ebe0;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .bc-myitems-search::placeholder { color: rgba(200,195,185,0.2); }
+  .bc-myitems-search:focus {
+    border-color: rgba(200,169,110,0.45);
+    background: rgba(200,169,110,0.04);
+    box-shadow: 0 0 0 3px rgba(200,169,110,0.07);
+  }
+
+  /* ── Error banner ── */
+  .bc-myitems-error {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 12px;
+    padding: 13px 16px;
+    margin-bottom: 24px;
+    font-size: 13px; color: #fca5a5;
+    animation: bc-mi-shake 0.35s ease;
+  }
+  @keyframes bc-mi-shake {
+    0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)}
+  }
+
+  /* ── Empty state ── */
+  .bc-myitems-empty {
+    background: #0d0c14;
+    border: 1px dashed rgba(200,169,110,0.12);
+    border-radius: 18px;
+    padding: 72px 24px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+  }
+  .bc-myitems-empty-icon {
+    width: 56px; height: 56px; border-radius: 15px;
+    background: rgba(200,169,110,0.06);
+    border: 1px solid rgba(200,169,110,0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(200,169,110,0.28); margin-bottom: 18px;
+  }
+  .bc-myitems-empty h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 400; color: #f5f0e8; margin-bottom: 8px;
+  }
+  .bc-myitems-empty p { font-size: 13px; color: rgba(200,195,185,0.35); margin-bottom: 24px; }
+
+  /* ── Grid ── */
+  .bc-myitems-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  @media (min-width: 540px) { .bc-myitems-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 900px) { .bc-myitems-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 1200px) { .bc-myitems-grid { grid-template-columns: repeat(4, 1fr); } }
+
+  /* ── Item card ── */
+  .bc-mi-card {
+    display: flex; flex-direction: column;
+    background: #0d0c14;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+  }
+  .bc-mi-card:hover {
+    border-color: rgba(200,169,110,0.22);
+    transform: translateY(-3px);
+    box-shadow: 0 14px 36px rgba(0,0,0,0.45);
+  }
+
+  /* Image */
+  .bc-mi-img-wrap {
+    position: relative; height: 190px;
+    background: #13121a; overflow: hidden;
+  }
+  .bc-mi-img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.6s ease;
+  }
+  .bc-mi-card:hover .bc-mi-img { transform: scale(1.07); }
+  .bc-mi-no-img {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: rgba(200,195,185,0.2); letter-spacing: 0.1em;
+  }
+  .bc-mi-img-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0);
+    transition: background 0.3s; pointer-events: none;
+  }
+  .bc-mi-card:hover .bc-mi-img-overlay { background: rgba(0,0,0,0.12); }
+
+  /* Status badge */
+  .bc-mi-badge {
+    position: absolute; top: 12px; right: 12px;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 11px; border-radius: 999px;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.07em;
+    backdrop-filter: blur(8px);
+  }
+  .bc-mi-badge--upcoming { background: rgba(59,130,246,0.18); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; }
+  .bc-mi-badge--active   { background: rgba(16,185,129,0.18); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
+  .bc-mi-badge--ended    { background: rgba(107,114,128,0.18); border: 1px solid rgba(107,114,128,0.28); color: #9ca3af; }
+
+  /* Card body */
+  .bc-mi-body { padding: 18px; display: flex; flex-direction: column; flex: 1; }
+
+  .bc-mi-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; font-weight: 400; color: #f5f0e8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 6px; transition: color 0.2s;
+  }
+  .bc-mi-card:hover .bc-mi-title { color: #c8a96e; }
+
+  .bc-mi-desc {
+    font-size: 12px; font-weight: 300;
+    color: rgba(220,215,205,0.38); line-height: 1.65;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; min-height: 36px; margin-bottom: 16px;
+  }
+
+  /* Bottom section */
+  .bc-mi-bottom {
+    margin-top: auto;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 14px;
+  }
+
+  /* Upcoming info box */
+  .bc-mi-upcoming-box {
+    background: rgba(59,130,246,0.06);
+    border: 1px solid rgba(59,130,246,0.14);
+    border-radius: 10px; padding: 12px;
+    margin-bottom: 12px;
+  }
+  .bc-mi-upcoming-label {
+    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(147,197,253,0.6); margin-bottom: 4px;
+  }
+  .bc-mi-upcoming-date {
+    font-size: 12px; font-weight: 400; color: #e8d5a3; margin-bottom: 6px;
+  }
+  .bc-mi-upcoming-timer {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: #93c5fd;
+  }
+
+  /* Bid/timer row */
+  .bc-mi-bid-row {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 8px;
+  }
+  .bc-mi-bid-label {
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(200,195,185,0.3); margin-bottom: 4px;
+  }
+  .bc-mi-bid-val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 300; color: #c8a96e; line-height: 1;
+  }
+  .bc-mi-bids-val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 300; color: rgba(200,195,185,0.6);
+    text-align: right; line-height: 1;
+  }
+  .bc-mi-ends-row {
+    display: flex; align-items: center; justify-content: flex-end; gap: 5px;
+    font-size: 11px; color: rgba(245,158,11,0.7); margin-bottom: 12px;
+  }
+
+  /* Action buttons */
+  .bc-mi-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bc-mi-action-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 9px; text-decoration: none;
+    border: 1px solid; cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    background: none;
+  }
+  .bc-mi-action-btn--view {
+    border-color: rgba(200,169,110,0.2); color: rgba(200,169,110,0.7);
+  }
+  .bc-mi-action-btn--view:hover { background: rgba(200,169,110,0.08); color: #c8a96e; border-color: rgba(200,169,110,0.4); }
+  .bc-mi-action-btn--edit {
+    border-color: rgba(251,191,36,0.2); color: rgba(251,191,36,0.6);
+  }
+  .bc-mi-action-btn--edit:hover { background: rgba(251,191,36,0.07); color: #fbbf24; border-color: rgba(251,191,36,0.35); }
+  .bc-mi-action-btn--bids {
+    border-color: rgba(16,185,129,0.2); color: rgba(16,185,129,0.6);
+  }
+  .bc-mi-action-btn--bids:hover { background: rgba(16,185,129,0.07); color: #6ee7b7; border-color: rgba(16,185,129,0.35); }
+  .bc-mi-action-btn--delete {
+    grid-column: 1 / -1;
+    border-color: rgba(239,68,68,0.15); color: rgba(239,68,68,0.55);
+  }
+  .bc-mi-action-btn--delete:hover { background: rgba(239,68,68,0.07); color: #f87171; border-color: rgba(239,68,68,0.3); }
+`;
+
 const MyItems = () => {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [filter, setFilter] = useState('active'); // Default to 'active' (Active + Upcoming)
+  const [items, setItems]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState('');
+  const [filter, setFilter]         = useState('active');
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // LIVE TIMER STATE: Triggers re-render every second to update countdowns and statuses
-  const [, setTick] = useState(0);
+  const [, setTick]                 = useState(0);
 
   useEffect(() => {
     fetchMyItems();
@@ -46,329 +415,230 @@ const MyItems = () => {
   };
 
   const handleDelete = async (itemId) => {
-    if (!window.confirm('Are you sure you want to delete this item?')) {
-      return;
-    }
-
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
     try {
       await api.delete(`/seller/items/${itemId}`);
       setItems(items.filter(item => item._id !== itemId));
-      setError(''); 
+      setError('');
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to delete item');
       setTimeout(() => setError(''), 5000);
     }
   };
 
-  // --- UPDATED TIMER LOGIC ---
-  // Calculates string based on whether we are counting down to Start or End
   const formatTimer = (item) => {
-    const now = new Date();
-    const start = item.startTime ? new Date(item.startTime) : new Date(); 
-    const end = new Date(item.endTime);
-
-    // 1. UPCOMING LOGIC (Count down to Start)
+    const now = new Date(), start = item.startTime ? new Date(item.startTime) : new Date(), end = new Date(item.endTime);
     if (now < start) {
-        const diff = start - now;
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        
-        if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-        return `${hours}h ${minutes}m ${seconds}s`;
+      const diff = start - now;
+      const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000),
+            m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+      return d > 0 ? `${d}d ${h}h ${m}m ${s}s` : `${h}h ${m}m ${s}s`;
     }
-
-    // 2. ACTIVE LOGIC (Count down to End)
     const diff = end - now;
     if (diff <= 0) return '00s';
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    
-    if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-    return `${hours}h ${minutes}m ${seconds}s`;
+    const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000),
+          m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+    return d > 0 ? `${d}d ${h}h ${m}m ${s}s` : `${h}h ${m}m ${s}s`;
   };
 
   const filteredItems = items.filter(item => {
-    // Strictly use Time comparisons for filtering logic to match the visuals
-    const now = new Date();
-    const start = new Date(item.startTime);
-    const end = new Date(item.endTime);
-
-    const isEnded = ['sold', 'expired', 'closed'].includes(item.status) || now >= end;
-    const isUpcoming = now < start; 
-    const isActive = !isUpcoming && !isEnded; // Specifically currently running
-
-    // Filter Logic
+    const now = new Date(), start = new Date(item.startTime), end = new Date(item.endTime);
+    const isEnded    = ['sold','expired','closed'].includes(item.status) || now >= end;
+    const isUpcoming = now < start;
+    const isActive   = !isUpcoming && !isEnded;
     let matchesFilter = false;
-    if (filter === 'all') matchesFilter = true;
-    else if (filter === 'active') matchesFilter = isActive || isUpcoming; // Active tab shows BOTH Active & Upcoming
-    else if (filter === 'ended') matchesFilter = isEnded;
-    
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesFilter && matchesSearch;
+    if (filter === 'all')    matchesFilter = true;
+    else if (filter === 'active') matchesFilter = isActive || isUpcoming;
+    else if (filter === 'ended')  matchesFilter = isEnded;
+    return matchesFilter && item.title.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  const totalActive = items.filter(i => new Date(i.endTime) > new Date()).length;
+  const totalEnded  = items.filter(i => new Date(i.endTime) <= new Date()).length;
+
+  if (loading) return (
+    <div className="bc-myitems-loading"><div className="bc-myitems-spinner" /></div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">My Listings</h1>
-            <p className="text-gray-500 mt-1">Manage and track your auction items</p>
-          </div>
-          <Link
-            to="/create-item"
-            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl shadow-lg text-white bg-indigo-600 hover:bg-indigo-700 transition-all transform hover:-translate-y-0.5"
-          >
-            <Plus className="w-5 h-5 mr-2" /> Create New Item
-          </Link>
-        </div>
+    <>
+      <style>{styles}</style>
+      <div className="bc-myitems">
+        <div className="bc-myitems-inner">
 
-        {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+          {/* ── Header ── */}
+          <div className="bc-myitems-header">
             <div>
-              <p className="text-sm font-medium text-gray-500">Total Listed</p>
-              <p className="text-2xl font-bold text-gray-900">{items.length}</p>
+              <div className="bc-myitems-eyebrow">Seller Portal</div>
+              <h1 className="bc-myitems-title">My <em>Listings</em></h1>
+              <p className="bc-myitems-sub">Manage and track your auction items</p>
             </div>
-            <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600">
-              <Gavel className="w-6 h-6" />
-            </div>
+            <Link to="/create-item" className="bc-myitems-create-btn">
+              <Plus size={14} /> Create New Item
+            </Link>
           </div>
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Active & Upcoming</p>
-              <p className="text-2xl font-bold text-green-600">
-                {items.filter(i => new Date(i.endTime) > new Date()).length}
-              </p>
-            </div>
-            <div className="p-3 bg-green-50 rounded-xl text-green-600">
-              <Clock className="w-6 h-6" />
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
-             <div>
-              <p className="text-sm font-medium text-gray-500">Ended Auctions</p>
-              <p className="text-2xl font-bold text-gray-600">
-                 {items.filter(i => new Date(i.endTime) <= new Date()).length}
-              </p>
-            </div>
-             <div className="p-3 bg-gray-100 rounded-xl text-gray-600">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-          </div>
-        </div>
 
-        {/* Filters & Search */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-8">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            {/* Filter Tabs */}
-            <div className="flex p-1 bg-gray-100 rounded-xl w-full md:w-auto">
-              {['all', 'active', 'ended'].map((type) => (
+          {/* ── Stats ── */}
+          <div className="bc-myitems-stats">
+            <div className="bc-myitems-stat">
+              <div>
+                <div className="bc-myitems-stat-label">Total Listed</div>
+                <div className={`bc-myitems-stat-val bc-myitems-stat-val--gold`}>{items.length}</div>
+              </div>
+              <div className="bc-myitems-stat-icon"><Gavel size={18} /></div>
+            </div>
+            <div className="bc-myitems-stat">
+              <div>
+                <div className="bc-myitems-stat-label">Active & Upcoming</div>
+                <div className={`bc-myitems-stat-val bc-myitems-stat-val--green`}>{totalActive}</div>
+              </div>
+              <div className="bc-myitems-stat-icon"><Clock size={18} /></div>
+            </div>
+            <div className="bc-myitems-stat">
+              <div>
+                <div className="bc-myitems-stat-label">Ended Auctions</div>
+                <div className={`bc-myitems-stat-val bc-myitems-stat-val--dim`}>{totalEnded}</div>
+              </div>
+              <div className="bc-myitems-stat-icon"><CheckCircle2 size={18} /></div>
+            </div>
+          </div>
+
+          {/* ── Filter bar ── */}
+          <div className="bc-myitems-filterbar">
+            <div className="bc-myitems-tabs">
+              {['all', 'active', 'ended'].map(type => (
                 <button
                   key={type}
                   onClick={() => setFilter(type)}
-                  className={`flex-1 md:flex-none px-6 py-2 rounded-lg text-sm font-medium capitalize transition-all ${
-                    filter === type
-                      ? 'bg-white text-indigo-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
+                  className={`bc-myitems-tab${filter === type ? ' bc-myitems-tab--active' : ''}`}
                 >
                   {type === 'active' ? 'Active & Upcoming' : type}
                 </button>
               ))}
             </div>
-
-            {/* Search Bar */}
-            <div className="relative w-full md:w-80">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <div className="bc-myitems-search-wrap">
+              <div className="bc-myitems-search-icon"><Search size={14} /></div>
               <input
                 type="text"
-                placeholder="Search items..."
+                placeholder="Search items…"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                onChange={e => setSearchQuery(e.target.value)}
+                className="bc-myitems-search"
               />
             </div>
           </div>
-        </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="mb-8 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 animate-fadeIn">
-            <AlertCircle className="w-5 h-5" />
-            <p className="font-medium">{error}</p>
-          </div>
-        )}
-
-        {/* Content Area */}
-        {filteredItems.length === 0 ? (
-           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Filter className="w-8 h-8 text-gray-300" />
+          {/* ── Error ── */}
+          {error && (
+            <div className="bc-myitems-error">
+              <AlertCircle size={15} style={{flexShrink:0}} /> {error}
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">No items found</h3>
-            <p className="text-gray-500">Try adjusting your filters or create a new listing.</p>
-             {filter === 'all' && searchQuery === '' && (
-                 <Link
-                 to="/create-item"
-                 className="inline-block mt-6 px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors"
-               >
-                 Create Item
-               </Link>
-             )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map((item) => {
-              const now = new Date();
-              const start = new Date(item.startTime);
-              const end = new Date(item.endTime);
+          )}
 
-              // STRICT TIME-BASED STATUS CHECKS (Reactive to live ticker)
-              const isEnded = ['sold', 'expired', 'closed'].includes(item.status) || now >= end;
-              const isUpcoming = now < start;
-              
-              // Only consider it "Active" if it's not ended and strictly past the start time
-              const isActive = !isUpcoming && !isEnded;
+          {/* ── Content ── */}
+          {filteredItems.length === 0 ? (
+            <div className="bc-myitems-empty">
+              <div className="bc-myitems-empty-icon"><Filter size={22} /></div>
+              <h3>No items found</h3>
+              <p>Try adjusting your filters or create a new listing.</p>
+              {filter === 'all' && searchQuery === '' && (
+                <Link to="/create-item" className="bc-myitems-create-btn">
+                  <Plus size={13} /> Create Item
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="bc-myitems-grid">
+              {filteredItems.map(item => {
+                const now   = new Date();
+                const start = new Date(item.startTime);
+                const end   = new Date(item.endTime);
+                const isEnded    = ['sold','expired','closed'].includes(item.status) || now >= end;
+                const isUpcoming = now < start;
+                const isActive   = !isUpcoming && !isEnded;
 
-              return (
-                <div key={item._id} className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full">
-                  {/* Image Container */}
-                  <div className="relative h-48 bg-gray-200 overflow-hidden">
-                    {item.images && item.images.length > 0 ? (
-                      <img
-                        src={item.images[0]}
-                        alt={item.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <span className="text-sm">No Image</span>
-                      </div>
-                    )}
-                    
-                    {/* Status Badge - VISUALLY SEPARATE */}
-                    <div className="absolute top-3 right-3">
-                      {isUpcoming ? (
-                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/90 text-white backdrop-blur-md shadow-sm">
-                            <Calendar className="w-3 h-3" /> Upcoming
-                         </span>
-                      ) : isEnded ? (
-                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-900/80 text-white backdrop-blur-md">
-                            <XCircle className="w-3 h-3" /> Ended
-                         </span>
+                return (
+                  <div key={item._id} className="bc-mi-card">
+                    {/* Image */}
+                    <div className="bc-mi-img-wrap">
+                      {item.images && item.images.length > 0 ? (
+                        <img src={item.images[0]} alt={item.title} className="bc-mi-img" />
                       ) : (
-                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-500/90 text-white backdrop-blur-md">
-                            <Clock className="w-3 h-3" /> Active
-                         </span>
+                        <div className="bc-mi-no-img">No Image</div>
                       )}
+                      <div className="bc-mi-img-overlay" />
+                      {isUpcoming && <div className="bc-mi-badge bc-mi-badge--upcoming"><Calendar size={10} /> Upcoming</div>}
+                      {isEnded    && <div className="bc-mi-badge bc-mi-badge--ended"><XCircle size={10} /> Ended</div>}
+                      {isActive   && <div className="bc-mi-badge bc-mi-badge--active"><Clock size={10} /> Active</div>}
                     </div>
-                  </div>
 
-                  {/* Card Body */}
-                  <div className="p-5 flex flex-col flex-grow">
-                    <div className="flex justify-between items-start mb-2">
-                         <h3 className="text-lg font-bold text-gray-900 line-clamp-1 group-hover:text-indigo-600 transition-colors" title={item.title}>
-                            {item.title}
-                        </h3>
-                    </div>
-                   
-                    <p className="text-sm text-gray-500 mb-4 line-clamp-2 min-h-[40px]">
-                        {item.description}
-                    </p>
+                    {/* Body */}
+                    <div className="bc-mi-body">
+                      <div className="bc-mi-title">{item.title}</div>
+                      <p className="bc-mi-desc">{item.description}</p>
 
-                    <div className="mt-auto pt-4 border-t border-gray-50">
-                        
-                        {/* DYNAMIC CONTENT based on status */}
+                      <div className="bc-mi-bottom">
                         {isUpcoming ? (
-                           <div className="mb-4 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                              <p className="text-xs text-blue-600 font-bold uppercase mb-1">Starts On</p>
-                              <p className="text-sm font-semibold text-gray-800">
-                                {start.toLocaleDateString()} at {start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                              </p>
-                              <div className="flex items-center gap-1 mt-2 text-xs font-bold text-blue-600">
-                                <Clock className="w-3 h-3" /> Starts in {formatTimer(item)}
-                              </div>
-                           </div>
+                          <div className="bc-mi-upcoming-box">
+                            <div className="bc-mi-upcoming-label">Starts On</div>
+                            <div className="bc-mi-upcoming-date">
+                              {start.toLocaleDateString()} at {start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                            </div>
+                            <div className="bc-mi-upcoming-timer">
+                              <Clock size={11} /> Starts in {formatTimer(item)}
+                            </div>
+                          </div>
                         ) : (
-                           // ACTIVE/ENDED Display
-                           <div className="mb-4">
-                               <div className="flex justify-between items-end mb-2">
-                                   <div>
-                                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Current Bid</p>
-                                      <p className="text-xl font-bold text-indigo-600">
-                                          ${item.currentBid || item.basePrice}
-                                      </p>
-                                   </div>
-                                   <div className="text-right">
-                                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Bids</p>
-                                      <p className="text-lg font-semibold text-gray-700">{item.bidCount || 0}</p>
-                                   </div>
-                               </div>
-                               {!isEnded && (
-                                   <div className="flex items-center justify-end gap-1 text-xs font-bold text-amber-600">
-                                      <Clock className="w-3 h-3" /> Ends in {formatTimer(item)}
-                                   </div>
-                               )}
-                           </div>
+                          <div>
+                            <div className="bc-mi-bid-row">
+                              <div>
+                                <div className="bc-mi-bid-label">Current Bid</div>
+                                <div className="bc-mi-bid-val">${item.currentBid || item.basePrice}</div>
+                              </div>
+                              <div>
+                                <div className="bc-mi-bid-label" style={{textAlign:'right'}}>Bids</div>
+                                <div className="bc-mi-bids-val">{item.bidCount || 0}</div>
+                              </div>
+                            </div>
+                            {!isEnded && (
+                              <div className="bc-mi-ends-row">
+                                <Clock size={11} /> Ends in {formatTimer(item)}
+                              </div>
+                            )}
+                          </div>
                         )}
 
-                        {/* Actions Grid */}
-                        <div className="grid grid-cols-2 gap-2">
-                            <Link
-                                to={`/item/${item._id}`}
-                                className="flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg text-sm font-medium hover:bg-indigo-100 transition-colors"
-                            >
-                                <Eye className="w-4 h-4" /> View
+                        <div className="bc-mi-actions">
+                          <Link to={`/item/${item._id}`} className="bc-mi-action-btn bc-mi-action-btn--view">
+                            <Eye size={12} /> View
+                          </Link>
+                          {!isEnded ? (
+                            <Link to={`/edit-item/${item._id}`} className="bc-mi-action-btn bc-mi-action-btn--edit">
+                              <Edit size={12} /> Edit
                             </Link>
-                            
-                            {!isEnded ? (
-                                <Link
-                                    to={`/edit-item/${item._id}`}
-                                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-50 text-amber-600 rounded-lg text-sm font-medium hover:bg-amber-100 transition-colors"
-                                >
-                                    <Edit className="w-4 h-4" /> Edit
-                                </Link>
-                            ) : (
-                                <Link
-                                    to={`/item/${item._id}`} 
-                                    className="flex items-center justify-center gap-1.5 px-3 py-2 bg-green-50 text-green-600 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
-                                >
-                                    <Gavel className="w-4 h-4" /> Bids
-                                </Link>
-                            )}
-
-                             <button
-                                onClick={() => handleDelete(item._id)}
-                                className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 bg-white border border-red-100 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors"
-                            >
-                                <Trash2 className="w-4 h-4" /> Delete Item
-                            </button>
+                          ) : (
+                            <Link to={`/item/${item._id}`} className="bc-mi-action-btn bc-mi-action-btn--bids">
+                              <Gavel size={12} /> Bids
+                            </Link>
+                          )}
+                          <button
+                            onClick={() => handleDelete(item._id)}
+                            className="bc-mi-action-btn bc-mi-action-btn--delete"
+                          >
+                            <Trash2 size={12} /> Delete Item
+                          </button>
                         </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

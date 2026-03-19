@@ -1,159 +1,442 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
-import { 
-  Package, 
-  Tag, 
-  FileText, 
-  DollarSign, 
-  Clock, 
-  Calendar, 
-  Upload, 
-  X, 
-  Image as ImageIcon,
-  ArrowLeft,
-  AlertCircle,
-  CheckCircle2
+import {
+  Package, Tag, FileText, DollarSign, Clock, Calendar,
+  Upload, X, Image as ImageIcon, ArrowLeft, AlertCircle, CheckCircle2
 } from "lucide-react";
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+  .bc-create * { box-sizing: border-box; }
+
+  .bc-create {
+    min-height: 100vh;
+    background: #0a0a0f;
+    font-family: 'DM Sans', sans-serif;
+    color: #f0ebe0;
+    padding: 40px 24px 72px;
+  }
+  .bc-create-inner { max-width: 1040px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .bc-create-header {
+    display: flex; flex-wrap: wrap; align-items: flex-end;
+    justify-content: space-between; gap: 16px;
+    margin-bottom: 36px;
+    padding-bottom: 26px;
+    border-bottom: 1px solid rgba(200,169,110,0.12);
+  }
+  .bc-create-eyebrow {
+    font-size: 10px; letter-spacing: 0.35em; text-transform: uppercase;
+    color: #c8a96e; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .bc-create-eyebrow::before { content: ''; width: 24px; height: 1px; background: #c8a96e; }
+  .bc-create-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(28px, 3.5vw, 42px);
+    font-weight: 300; line-height: 1.1; color: #f5f0e8;
+  }
+  .bc-create-title em { font-style: italic; color: #c8a96e; }
+  .bc-create-sub { font-size: 13px; color: rgba(200,195,185,0.38); margin-top: 6px; }
+
+  .bc-create-back {
+    display: none;
+    align-items: center; gap: 7px;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(200,195,185,0.38);
+    background: none; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: color 0.2s, gap 0.2s;
+  }
+  @media (min-width: 640px) { .bc-create-back { display: flex; } }
+  .bc-create-back:hover { color: #c8a96e; gap: 10px; }
+  .bc-create-back svg { transition: transform 0.25s; }
+  .bc-create-back:hover svg { transform: translateX(-3px); }
+
+  /* ── Error ── */
+  .bc-create-error {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 24px;
+    animation: bc-create-shake 0.35s ease;
+  }
+  @keyframes bc-create-shake {
+    0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)}
+  }
+  .bc-create-error svg { color: #f87171; flex-shrink: 0; margin-top: 1px; }
+  .bc-create-error-title { font-size: 12px; font-weight: 500; color: #f87171; margin-bottom: 2px; letter-spacing: 0.04em; }
+  .bc-create-error-text  { font-size: 12px; color: rgba(248,113,113,0.7); }
+
+  /* ── Grid ── */
+  .bc-create-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  @media (min-width: 1024px) { .bc-create-grid { grid-template-columns: 7fr 5fr; } }
+
+  /* ── Card (reusable panel) ── */
+  .bc-create-card {
+    background: #0d0c14;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px;
+    padding: 28px;
+  }
+
+  .bc-create-card-head {
+    display: flex; align-items: center; gap: 12px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 22px;
+  }
+  .bc-create-card-icon {
+    width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(200,169,110,0.08);
+    border: 1px solid rgba(200,169,110,0.18);
+    color: #c8a96e;
+  }
+  .bc-create-card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 400; color: #f5f0e8;
+  }
+  .bc-create-card-sub { font-size: 11px; color: rgba(200,195,185,0.35); margin-top: 2px; }
+
+  /* Fields */
+  .bc-create-fields { display: flex; flex-direction: column; gap: 18px; }
+  .bc-create-field { display: flex; flex-direction: column; gap: 7px; }
+  .bc-create-label {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(200,195,185,0.38);
+  }
+  .bc-create-input-wrap { position: relative; }
+  .bc-create-input-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: rgba(200,169,110,0.4); pointer-events: none; z-index: 2;
+    transition: color 0.2s;
+  }
+  .bc-create-textarea-icon {
+    position: absolute; top: 13px; left: 14px;
+    color: rgba(200,169,110,0.4); pointer-events: none; z-index: 2;
+    transition: color 0.2s;
+  }
+  .bc-create-input-wrap:focus-within .bc-create-input-icon,
+  .bc-create-input-wrap:focus-within .bc-create-textarea-icon { color: #c8a96e; }
+
+  .bc-create-input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 11px;
+    padding: 12px 14px 12px 42px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: #f0ebe0;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .bc-create-input::placeholder { color: rgba(200,195,185,0.18); }
+  .bc-create-input:focus {
+    border-color: rgba(200,169,110,0.5);
+    background: rgba(200,169,110,0.04);
+    box-shadow: 0 0 0 3px rgba(200,169,110,0.07);
+  }
+  .bc-create-input--price {
+    padding-left: 28px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 300;
+  }
+  .bc-create-price-symbol {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; color: rgba(200,169,110,0.6); pointer-events: none; z-index: 2;
+    transition: color 0.2s;
+  }
+  .bc-create-input-wrap:focus-within .bc-create-price-symbol { color: #c8a96e; }
+
+  .bc-create-select {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 11px;
+    padding: 12px 38px 12px 42px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: #f0ebe0;
+    outline: none; appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23c8a96e'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px;
+    transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+  }
+  .bc-create-select option { background: #13121a; color: #f0ebe0; }
+  .bc-create-select:focus {
+    border-color: rgba(200,169,110,0.5);
+    background-color: rgba(200,169,110,0.04);
+    box-shadow: 0 0 0 3px rgba(200,169,110,0.07);
+  }
+  .bc-create-select--no-icon { padding-left: 14px; }
+
+  .bc-create-textarea {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 11px;
+    padding: 12px 14px 12px 42px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: #f0ebe0;
+    outline: none; resize: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .bc-create-textarea::placeholder { color: rgba(200,195,185,0.18); }
+  .bc-create-textarea:focus {
+    border-color: rgba(200,169,110,0.5);
+    background: rgba(200,169,110,0.04);
+    box-shadow: 0 0 0 3px rgba(200,169,110,0.07);
+  }
+
+  .bc-create-hint { font-size: 11px; color: rgba(200,195,185,0.28); letter-spacing: 0.03em; }
+
+  /* Datetime input */
+  .bc-create-datetime {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 11px;
+    padding: 12px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: #f0ebe0;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    color-scheme: dark;
+  }
+  .bc-create-datetime:focus {
+    border-color: rgba(200,169,110,0.5);
+    background: rgba(200,169,110,0.04);
+    box-shadow: 0 0 0 3px rgba(200,169,110,0.07);
+  }
+
+  /* ── Drag-drop zone ── */
+  .bc-create-dropzone {
+    border: 1.5px dashed rgba(200,169,110,0.2);
+    border-radius: 14px; padding: 36px 24px;
+    text-align: center;
+    transition: border-color 0.2s, background 0.2s;
+    cursor: pointer;
+  }
+  .bc-create-dropzone--active {
+    border-color: rgba(200,169,110,0.55);
+    background: rgba(200,169,110,0.04);
+  }
+  .bc-create-dropzone:not(.bc-create-dropzone--active):hover {
+    border-color: rgba(200,169,110,0.35);
+    background: rgba(200,169,110,0.02);
+  }
+  .bc-create-drop-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: rgba(200,169,110,0.08); border: 1px solid rgba(200,169,110,0.18);
+    display: flex; align-items: center; justify-content: center;
+    color: #c8a96e; margin: 0 auto 14px;
+  }
+  .bc-create-drop-cta {
+    font-size: 13px; font-weight: 500; color: #c8a96e;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .bc-create-drop-cta:hover { opacity: 0.8; }
+  .bc-create-drop-sub { font-size: 12px; color: rgba(200,195,185,0.35); margin-top: 4px; }
+  .bc-create-drop-hint { font-size: 11px; color: rgba(200,195,185,0.22); margin-top: 6px; }
+
+  /* Image previews */
+  .bc-create-previews {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px; margin-top: 16px;
+  }
+  .bc-create-preview {
+    position: relative; border-radius: 10px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+    aspect-ratio: 1;
+  }
+  .bc-create-preview img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+  .bc-create-preview:hover img { transform: scale(1.06); }
+  .bc-create-preview-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.5);
+    opacity: 0; transition: opacity 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bc-create-preview:hover .bc-create-preview-overlay { opacity: 1; }
+  .bc-create-preview-del {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(239,68,68,0.85); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; transition: background 0.2s;
+  }
+  .bc-create-preview-del:hover { background: #ef4444; }
+  .bc-create-preview-main {
+    position: absolute; top: 8px; left: 8px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    background: rgba(200,169,110,0.9); color: #0a0a0f; font-weight: 500;
+  }
+
+  /* ── Toggle pills ── */
+  .bc-create-toggle {
+    display: flex; gap: 6px;
+    padding: 4px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  .bc-create-toggle-btn {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 9px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 400; letter-spacing: 0.05em;
+    border-radius: 7px; border: none; cursor: pointer;
+    background: transparent;
+    color: rgba(220,215,205,0.4);
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  }
+  .bc-create-toggle-btn:hover { color: #e8d5a3; background: rgba(200,169,110,0.05); }
+  .bc-create-toggle-btn--active {
+    background: rgba(200,169,110,0.12);
+    border: 1px solid rgba(200,169,110,0.2);
+    color: #c8a96e;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .bc-create-toggle-sub-label {
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(200,195,185,0.3); margin-bottom: 7px;
+  }
+
+  .bc-create-timing-divider {
+    height: 1px; background: rgba(255,255,255,0.05); margin: 18px 0;
+  }
+
+  /* ── Submit buttons ── */
+  .bc-create-submit {
+    position: relative; overflow: hidden;
+    width: 100%;
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    padding: 15px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: #0a0a0f; border: none; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(135deg, #c8a96e, #a07840);
+    box-shadow: 0 8px 24px rgba(200,169,110,0.28);
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  }
+  .bc-create-submit::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .bc-create-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(200,169,110,0.38); }
+  .bc-create-submit:hover:not(:disabled)::before { opacity: 1; }
+  .bc-create-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+  .bc-create-submit-spin {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid rgba(10,10,15,0.25); border-top-color: #0a0a0f;
+    animation: bc-create-spin 0.8s linear infinite;
+  }
+  @keyframes bc-create-spin { to { transform: rotate(360deg); } }
+
+  .bc-create-cancel {
+    width: 100%;
+    display: flex; align-items: center; justify-content: center;
+    padding: 13px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 400;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(220,215,205,0.5); border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent; cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+  .bc-create-cancel:hover {
+    color: #e8d5a3; border-color: rgba(200,169,110,0.3); background: rgba(200,169,110,0.05);
+  }
+`;
+
+const CATEGORIES = [
+  "Electronics","Fashion","Home & Garden","Sports","Books",
+  "Collectibles","Art","Jewelry","Automotive","Other",
+];
 
 const CreateItem = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    category: "",
-    basePrice: "",
-    auctionDuration: "24",
-    customEndTime: "",
-    customStartTime: "", // Added for scheduling
+    title: "", description: "", category: "", basePrice: "",
+    auctionDuration: "24", customEndTime: "", customStartTime: "",
   });
-  
-  const [scheduleType, setScheduleType] = useState("immediate"); // 'immediate' or 'scheduled'
-  const [durationType, setDurationType] = useState("fixed"); // 'fixed' or 'custom'
-  
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [imageFiles, setImageFiles] = useState([]);
-  const [imagePreview, setImagePreview] = useState([]);
-  const [dragActive, setDragActive] = useState(false);
+  const [scheduleType, setScheduleType] = useState("immediate");
+  const [durationType, setDurationType]   = useState("fixed");
+  const [loading, setLoading]             = useState(false);
+  const [error, setError]                 = useState("");
+  const [imageFiles, setImageFiles]       = useState([]);
+  const [imagePreview, setImagePreview]   = useState([]);
+  const [dragActive, setDragActive]       = useState(false);
 
-  const categories = [
-    "Electronics", "Fashion", "Home & Garden", "Sports", "Books",
-    "Collectibles", "Art", "Jewelry", "Automotive", "Other",
-  ];
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleImageChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      processFiles(e.target.files);
-    }
-  };
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const processFiles = (files) => {
     const fileArray = Array.from(files);
-    
-    // Validate file count
-    if (imageFiles.length + fileArray.length > 5) {
-      setError("You can only upload a maximum of 5 images.");
-      return;
-    }
-
-    const newPreviews = fileArray.map((file) => URL.createObjectURL(file));
-    setImageFiles((prev) => [...prev, ...fileArray]);
-    setImagePreview((prev) => [...prev, ...newPreviews]);
+    if (imageFiles.length + fileArray.length > 5) { setError("You can only upload a maximum of 5 images."); return; }
+    setImageFiles(prev => [...prev, ...fileArray]);
+    setImagePreview(prev => [...prev, ...fileArray.map(f => URL.createObjectURL(f))]);
     setError("");
   };
 
+  const handleImageChange = (e) => { if (e.target.files?.length > 0) processFiles(e.target.files); };
   const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
+    e.preventDefault(); e.stopPropagation();
+    setDragActive(e.type === "dragenter" || e.type === "dragover");
   };
-
   const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFiles(e.dataTransfer.files);
-    }
+    e.preventDefault(); e.stopPropagation(); setDragActive(false);
+    if (e.dataTransfer.files?.length > 0) processFiles(e.dataTransfer.files);
   };
-
-  const removeImage = (index) => {
-    const newFiles = imageFiles.filter((_, i) => i !== index);
-    const newPreviews = imagePreview.filter((_, i) => i !== index);
-    setImageFiles(newFiles);
-    setImagePreview(newPreviews);
+  const removeImage = (i) => {
+    setImageFiles(prev => prev.filter((_, idx) => idx !== i));
+    setImagePreview(prev => prev.filter((_, idx) => idx !== i));
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
+    e.preventDefault(); setError(""); setLoading(true);
     try {
-      if (imageFiles.length === 0) {
-        throw new Error("Please upload at least one image.");
-      }
-
+      if (imageFiles.length === 0) throw new Error("Please upload at least one image.");
       const data = new FormData();
       data.append("title", formData.title);
       data.append("description", formData.description);
       data.append("category", formData.category);
       data.append("basePrice", formData.basePrice);
-      data.append("scheduleType", scheduleType); // Send schedule type
-
-      // 1. Handle Start Time
-      if (scheduleType === 'scheduled') {
+      data.append("scheduleType", scheduleType);
+      if (scheduleType === "scheduled") {
         if (!formData.customStartTime) throw new Error("Please select a start time.");
-        const startTime = new Date(formData.customStartTime).getTime();
-        if (startTime <= Date.now()) {
-             throw new Error("Start time must be in the future.");
-        }
+        if (new Date(formData.customStartTime).getTime() <= Date.now()) throw new Error("Start time must be in the future.");
         data.append("customStartTime", formData.customStartTime);
       }
-
-      // 2. Handle Duration / End Time
-      if (durationType === 'fixed') {
+      if (durationType === "fixed") {
         data.append("auctionDuration", formData.auctionDuration);
       } else {
         if (!formData.customEndTime) throw new Error("Please select an end time.");
-        const endTime = new Date(formData.customEndTime).getTime();
-        const startTime = scheduleType === 'scheduled' 
-            ? new Date(formData.customStartTime).getTime() 
-            : Date.now();
-            
-        if (endTime <= startTime) {
-          throw new Error("End time must be after the start time.");
-        }
+        const endTime   = new Date(formData.customEndTime).getTime();
+        const startTime = scheduleType === "scheduled" ? new Date(formData.customStartTime).getTime() : Date.now();
+        if (endTime <= startTime) throw new Error("End time must be after the start time.");
         data.append("customEndTime", formData.customEndTime);
       }
-
-      imageFiles.forEach((file) => {
-        data.append("images", file);
-      });
-
-      // FIX: Removed manual 'Content-Type' header to prevent "Unexpected end of form"
-      // await api.post("/seller/items", data, {
-      //   headers: { "Content-Type": "multipart/form-data" },
-      // });
-      await api.post("/seller/items", data, {
-        headers: { "Content-Type": undefined }, // This is the fix
-      });
-
+      imageFiles.forEach(f => data.append("images", f));
+      await api.post("/seller/items", data, { headers: { "Content-Type": undefined } });
       navigate("/my-items");
-    } catch (error) {
-      setError(error.message || error.response?.data?.message || "Failed to create item");
+    } catch (err) {
+      setError(err.message || err.response?.data?.message || "Failed to create item");
       window.scrollTo(0, 0);
     } finally {
       setLoading(false);
@@ -161,321 +444,190 @@ const CreateItem = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto"> {/* Changed max-w-4xl to max-w-5xl for wider layout */}
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Create Listing</h1>
-            <p className="mt-2 text-sm text-gray-500">
-              Fill in the details below to start a new auction.
-            </p>
+    <>
+      <style>{styles}</style>
+      <div className="bc-create">
+        <div className="bc-create-inner">
+
+          {/* Header */}
+          <div className="bc-create-header">
+            <div>
+              <div className="bc-create-eyebrow">Seller Portal</div>
+              <h1 className="bc-create-title">Create <em>Listing</em></h1>
+              <p className="bc-create-sub">Fill in the details below to launch a new auction.</p>
+            </div>
+            <button className="bc-create-back" onClick={() => navigate("/dashboard")}>
+              <ArrowLeft size={13} /> Back to Dashboard
+            </button>
           </div>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="hidden sm:flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to Dashboard
-          </button>
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-start animate-fadeIn">
-              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
-              <div>
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
-              </div>
-            </div>
-          )}
+          <form onSubmit={handleSubmit}>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6"> {/* Changed grid cols to 12 for finer control */}
-            
-            {/* Left Column - Main Details (Span 7 columns) */}
-            <div className="lg:col-span-7 space-y-6">
-              
-              {/* Basic Info Card */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
-                    <Package className="w-6 h-6" />
-                  </div>
-                  <h2 className="text-xl font-bold text-gray-900">Item Details</h2>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Item Title</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Package className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <input
-                        type="text"
-                        name="title"
-                        value={formData.title}
-                        onChange={handleChange}
-                        required
-                        className="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none bg-gray-50 focus:bg-white"
-                        placeholder="e.g. Vintage 1960s Camera"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Tag className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <select
-                        name="category"
-                        value={formData.category}
-                        onChange={handleChange}
-                        required
-                        className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none bg-gray-50 focus:bg-white appearance-none"
-                      >
-                        <option value="">Select a category</option>
-                        {categories.map((category) => (
-                          <option key={category} value={category}>{category}</option>
-                        ))}
-                      </select>
-                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <div className="relative">
-                      <div className="absolute top-3 left-3 flex items-start pointer-events-none">
-                        <FileText className="h-5 w-5 text-gray-400" />
-                      </div>
-                      <textarea
-                        name="description"
-                        rows="5"
-                        value={formData.description}
-                        onChange={handleChange}
-                        required
-                        className="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none bg-gray-50 focus:bg-white resize-none"
-                        placeholder="Detailed description of the item, condition, provenance, etc."
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Media Upload Card */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
-                    <ImageIcon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">Media</h2>
-                    <p className="text-sm text-gray-500">Upload up to 5 photos of your item.</p>
-                  </div>
-                </div>
-
-                <div 
-                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
-                    dragActive 
-                      ? "border-indigo-500 bg-indigo-50" 
-                      : "border-gray-300 hover:border-indigo-400 hover:bg-gray-50"
-                  }`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                >
-                  <input
-                    id="image-upload"
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center mb-4">
-                      <Upload className="h-6 w-6 text-indigo-600" />
-                    </div>
-                    <label 
-                      htmlFor="image-upload"
-                      className="text-base font-medium text-indigo-600 cursor-pointer hover:text-indigo-500"
-                    >
-                      Click to upload
-                    </label>
-                    <span className="text-sm text-gray-500 mt-1">or drag and drop images here</span>
-                    <p className="text-xs text-gray-400 mt-2">JPG, PNG, WEBP up to 5MB</p>
-                  </div>
-                </div>
-
-                {imagePreview.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
-                    {imagePreview.map((preview, index) => (
-                      <div key={index} className="relative group rounded-xl overflow-hidden border border-gray-200 shadow-sm aspect-square">
-                        <img 
-                          src={preview} 
-                          alt={`Preview ${index + 1}`} 
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="p-2 bg-white rounded-full text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                        {index === 0 && (
-                          <div className="absolute top-2 left-2 bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded shadow-sm">
-                            Main Image
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Right Column - Settings (Span 5 columns) */}
-            <div className="lg:col-span-5 space-y-6">
-              
-              {/* Pricing Card */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-green-100 rounded-lg text-green-600">
-                    <DollarSign className="w-6 h-6" />
-                  </div>
-                  <h2 className="text-xl font-bold text-gray-900">Pricing</h2>
-                </div>
-                
+            {/* Error */}
+            {error && (
+              <div className="bc-create-error">
+                <AlertCircle size={15} />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Starting Bid</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 font-bold">$</span>
-                    </div>
-                    <input
-                      type="number"
-                      name="basePrice"
-                      value={formData.basePrice}
-                      onChange={handleChange}
-                      required
-                      min="0.01"
-                      step="0.01"
-                      className="block w-full pl-8 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none bg-gray-50 focus:bg-white font-medium text-lg"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    This is the minimum amount the first bidder needs to place.
-                  </p>
+                  <div className="bc-create-error-title">Error</div>
+                  <div className="bc-create-error-text">{error}</div>
                 </div>
               </div>
+            )}
 
-              {/* TIMING CONFIGURATION CARD */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
-                    <Clock className="w-6 h-6" />
+            <div className="bc-create-grid">
+
+              {/* ── LEFT: Main details ── */}
+              <div style={{display:'flex', flexDirection:'column', gap:'20px'}}>
+
+                {/* Item Details */}
+                <div className="bc-create-card">
+                  <div className="bc-create-card-head">
+                    <div className="bc-create-card-icon"><Package size={17} /></div>
+                    <div>
+                      <div className="bc-create-card-title">Item Details</div>
+                    </div>
                   </div>
-                  <h2 className="text-xl font-bold text-gray-900">Timing</h2>
+                  <div className="bc-create-fields">
+                    <div className="bc-create-field">
+                      <label className="bc-create-label">Item Title</label>
+                      <div className="bc-create-input-wrap">
+                        <div className="bc-create-input-icon"><Package size={14} /></div>
+                        <input type="text" name="title" value={formData.title} onChange={handleChange} required placeholder="e.g. Vintage 1960s Camera" className="bc-create-input" />
+                      </div>
+                    </div>
+                    <div className="bc-create-field">
+                      <label className="bc-create-label">Category</label>
+                      <div className="bc-create-input-wrap">
+                        <div className="bc-create-input-icon"><Tag size={14} /></div>
+                        <select name="category" value={formData.category} onChange={handleChange} required className="bc-create-select">
+                          <option value="">Select a category</option>
+                          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="bc-create-field">
+                      <label className="bc-create-label">Description</label>
+                      <div className="bc-create-input-wrap">
+                        <div className="bc-create-textarea-icon"><FileText size={14} /></div>
+                        <textarea name="description" rows={5} value={formData.description} onChange={handleChange} required placeholder="Detailed description of the item, condition, provenance, etc." className="bc-create-textarea" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-5">
-                  
-                  {/* 1. Start Time Section */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">When to start?</label>
-                    <div className="flex gap-2 p-1 bg-gray-50 rounded-xl border border-gray-100 mb-3 w-full">
-                        <button
-                          type="button"
-                          onClick={() => setScheduleType('immediate')}
-                          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                            scheduleType === 'immediate'
-                              ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-gray-200'
-                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                          }`}
-                        >
-                          <Clock className="w-4 h-4" /> Immediate
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setScheduleType('scheduled')}
-                          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                            scheduleType === 'scheduled'
-                              ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-gray-200'
-                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                          }`}
-                        >
-                          <Calendar className="w-4 h-4" /> Schedule
-                        </button>
+                {/* Media */}
+                <div className="bc-create-card">
+                  <div className="bc-create-card-head">
+                    <div className="bc-create-card-icon"><ImageIcon size={17} /></div>
+                    <div>
+                      <div className="bc-create-card-title">Media</div>
+                      <div className="bc-create-card-sub">Upload up to 5 photos of your item</div>
                     </div>
-                    
-                    {scheduleType === 'scheduled' && (
-                        <div className="animate-fadeIn">
-                          <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Start Date & Time</label>
+                  </div>
+
+                  <div
+                    className={`bc-create-dropzone${dragActive ? " bc-create-dropzone--active" : ""}`}
+                    onDragEnter={handleDrag} onDragLeave={handleDrag}
+                    onDragOver={handleDrag} onDrop={handleDrop}
+                  >
+                    <input id="img-upload" type="file" multiple accept="image/*" onChange={handleImageChange} style={{display:'none'}} />
+                    <div className="bc-create-drop-icon"><Upload size={20} /></div>
+                    <label htmlFor="img-upload" className="bc-create-drop-cta">Click to upload</label>
+                    <p className="bc-create-drop-sub">or drag and drop images here</p>
+                    <p className="bc-create-drop-hint">JPG, PNG, WEBP · up to 5MB · max 5 images</p>
+                  </div>
+
+                  {imagePreview.length > 0 && (
+                    <div className="bc-create-previews">
+                      {imagePreview.map((src, i) => (
+                        <div key={i} className="bc-create-preview">
+                          <img src={src} alt={`Preview ${i + 1}`} />
+                          <div className="bc-create-preview-overlay">
+                            <button type="button" className="bc-create-preview-del" onClick={() => removeImage(i)}>
+                              <X size={13} />
+                            </button>
+                          </div>
+                          {i === 0 && <div className="bc-create-preview-main">Main</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* ── RIGHT: Settings ── */}
+              <div style={{display:'flex', flexDirection:'column', gap:'20px'}}>
+
+                {/* Pricing */}
+                <div className="bc-create-card">
+                  <div className="bc-create-card-head">
+                    <div className="bc-create-card-icon"><DollarSign size={17} /></div>
+                    <div><div className="bc-create-card-title">Pricing</div></div>
+                  </div>
+                  <div className="bc-create-field">
+                    <label className="bc-create-label">Starting Bid</label>
+                    <div className="bc-create-input-wrap">
+                      <span className="bc-create-price-symbol">$</span>
+                      <input
+                        type="number" name="basePrice" value={formData.basePrice}
+                        onChange={handleChange} required min="0.01" step="0.01"
+                        placeholder="0.00"
+                        className="bc-create-input bc-create-input--price"
+                      />
+                    </div>
+                    <p className="bc-create-hint">Minimum amount required from the first bidder.</p>
+                  </div>
+                </div>
+
+                {/* Timing */}
+                <div className="bc-create-card">
+                  <div className="bc-create-card-head">
+                    <div className="bc-create-card-icon"><Clock size={17} /></div>
+                    <div><div className="bc-create-card-title">Timing</div></div>
+                  </div>
+
+                  <div className="bc-create-fields">
+                    {/* Start time */}
+                    <div className="bc-create-field">
+                      <label className="bc-create-label">When to start?</label>
+                      <div className="bc-create-toggle">
+                        <button type="button" className={`bc-create-toggle-btn${scheduleType==='immediate'?' bc-create-toggle-btn--active':''}`} onClick={() => setScheduleType('immediate')}>
+                          <Clock size={13} /> Immediate
+                        </button>
+                        <button type="button" className={`bc-create-toggle-btn${scheduleType==='scheduled'?' bc-create-toggle-btn--active':''}`} onClick={() => setScheduleType('scheduled')}>
+                          <Calendar size={13} /> Schedule
+                        </button>
+                      </div>
+                      {scheduleType === 'scheduled' && (
+                        <div>
+                          <div className="bc-create-toggle-sub-label">Start Date &amp; Time</div>
                           <input
-                            type="datetime-local"
-                            name="customStartTime"
-                            value={formData.customStartTime}
-                            onChange={handleChange}
-                            min={new Date().toISOString().slice(0, 16)}
-                            className="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none bg-white text-sm" // Increased py to match End Date
+                            type="datetime-local" name="customStartTime"
+                            value={formData.customStartTime} onChange={handleChange}
+                            min={new Date().toISOString().slice(0,16)}
+                            className="bc-create-datetime"
                           />
                         </div>
-                    )}
-                  </div>
-
-                  <hr className="border-gray-100" />
-
-                  {/* 2. Duration / End Time Section */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
-                    <div className="flex gap-2 p-1 bg-gray-50 rounded-xl border border-gray-100 mb-3 w-full">
-                      <button
-                        type="button"
-                        onClick={() => setDurationType('fixed')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                          durationType === 'fixed'
-                            ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-gray-200'
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <Clock className="w-4 h-4" /> Fixed Time
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDurationType('custom')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs sm:text-sm font-medium transition-all ${
-                          durationType === 'custom'
-                            ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-gray-200'
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                        }`}
-                      >
-                        <Calendar className="w-4 h-4" /> Custom End
-                      </button>
+                      )}
                     </div>
 
-                    <div className="pt-1">
+                    <div className="bc-create-timing-divider" />
+
+                    {/* Duration */}
+                    <div className="bc-create-field">
+                      <label className="bc-create-label">Duration</label>
+                      <div className="bc-create-toggle">
+                        <button type="button" className={`bc-create-toggle-btn${durationType==='fixed'?' bc-create-toggle-btn--active':''}`} onClick={() => setDurationType('fixed')}>
+                          <Clock size={13} /> Fixed Time
+                        </button>
+                        <button type="button" className={`bc-create-toggle-btn${durationType==='custom'?' bc-create-toggle-btn--active':''}`} onClick={() => setDurationType('custom')}>
+                          <Calendar size={13} /> Custom End
+                        </button>
+                      </div>
                       {durationType === 'fixed' ? (
-                        <div className="relative">
-                          <select
-                            name="auctionDuration"
-                            value={formData.auctionDuration}
-                            onChange={handleChange}
-                            className="block w-full pl-4 pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none bg-white appearance-none cursor-pointer"
-                          >
+                        <div className="bc-create-input-wrap">
+                          <select name="auctionDuration" value={formData.auctionDuration} onChange={handleChange} className="bc-create-select bc-create-select--no-icon">
                             <option value="1">1 Hour</option>
                             <option value="6">6 Hours</option>
                             <option value="12">12 Hours</option>
@@ -484,60 +636,41 @@ const CreateItem = () => {
                             <option value="72">3 Days</option>
                             <option value="168">1 Week</option>
                           </select>
-                          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
                         </div>
                       ) : (
-                        <div className="animate-fadeIn">
-                           <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">End Date & Time</label>
-                           <input
-                            type="datetime-local"
-                            name="customEndTime"
-                            value={formData.customEndTime}
-                            onChange={handleChange}
-                            required
-                            min={formData.customStartTime || new Date().toISOString().slice(0, 16)}
-                            className="block w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none bg-white text-sm"
+                        <div>
+                          <div className="bc-create-toggle-sub-label">End Date &amp; Time</div>
+                          <input
+                            type="datetime-local" name="customEndTime"
+                            value={formData.customEndTime} onChange={handleChange} required
+                            min={formData.customStartTime || new Date().toISOString().slice(0,16)}
+                            className="bc-create-datetime"
                           />
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="flex flex-col gap-3">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transform active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-5 h-5" /> Launch Auction
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/my-items")}
-                  className="w-full py-3 bg-white text-gray-700 border border-gray-200 rounded-xl font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+                {/* Actions */}
+                <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+                  <button type="submit" disabled={loading} className="bc-create-submit">
+                    {loading
+                      ? <div className="bc-create-submit-spin" />
+                      : <><CheckCircle2 size={15} /> Launch Auction</>
+                    }
+                  </button>
+                  <button type="button" onClick={() => navigate("/my-items")} className="bc-create-cancel">
+                    Cancel
+                  </button>
+                </div>
 
+              </div>
             </div>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

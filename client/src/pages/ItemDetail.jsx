@@ -2,21 +2,495 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import api from "../services/api";
-import { 
-  Clock, 
-  DollarSign, 
-  User, 
-  Tag, 
-  AlertCircle, 
-  CheckCircle2, 
-  Trophy, 
-  Gavel, 
+import {
+  Clock,
+  DollarSign,
+  User,
+  Tag,
+  AlertCircle,
+  CheckCircle2,
+  Trophy,
+  Gavel,
   ArrowLeft,
   ShieldAlert,
   History,
   Info,
-  Calendar
-} from 'lucide-react';
+  Calendar,
+} from "lucide-react";
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+  .bc-detail * { box-sizing: border-box; }
+
+  .bc-detail {
+    min-height: 100vh;
+    background: #0a0a0f;
+    font-family: 'DM Sans', sans-serif;
+    color: #f0ebe0;
+    padding: 36px 24px 72px;
+  }
+  .bc-detail-inner { max-width: 1200px; margin: 0 auto; }
+
+  /* ── Loading ── */
+  .bc-detail-loading {
+    min-height: 100vh; background: #0a0a0f;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bc-detail-spinner {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 2px solid rgba(200,169,110,0.15);
+    border-top-color: #c8a96e;
+    animation: bc-det-spin 0.8s linear infinite;
+  }
+  @keyframes bc-det-spin { to { transform: rotate(360deg); } }
+
+  /* Not found */
+  .bc-detail-notfound {
+    min-height: 100vh; background: #0a0a0f;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .bc-detail-notfound-card {
+    background: #0d0c14;
+    border: 1px solid rgba(200,169,110,0.15);
+    border-radius: 20px;
+    padding: 52px 44px;
+    text-align: center;
+    max-width: 400px;
+  }
+  .bc-detail-notfound-icon {
+    width: 60px; height: 60px; border-radius: 16px;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.2);
+    display: flex; align-items: center; justify-content: center;
+    color: #f87171; margin: 0 auto 20px;
+  }
+  .bc-detail-notfound h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px; font-weight: 400; color: #f5f0e8; margin-bottom: 8px;
+  }
+  .bc-detail-notfound p {
+    font-size: 13px; color: rgba(200,195,185,0.45); line-height: 1.65; margin-bottom: 28px;
+  }
+
+  /* ── Back button ── */
+  .bc-detail-back {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(200,195,185,0.4);
+    background: none; border: none; cursor: pointer; padding: 0;
+    margin-bottom: 32px;
+    transition: color 0.2s, gap 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .bc-detail-back:hover { color: #c8a96e; gap: 10px; }
+  .bc-detail-back svg { transition: transform 0.25s; }
+  .bc-detail-back:hover svg { transform: translateX(-3px); }
+
+  /* ── Result alerts ── */
+  .bc-detail-alert {
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 32px;
+    border: 1px solid;
+  }
+  .bc-detail-alert--win {
+    background: rgba(16,185,129,0.08);
+    border-color: rgba(16,185,129,0.22);
+  }
+  .bc-detail-alert--lose {
+    background: rgba(107,114,128,0.08);
+    border-color: rgba(107,114,128,0.18);
+  }
+  .bc-detail-alert-icon {
+    width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bc-detail-alert-icon--win { background: rgba(16,185,129,0.12); color: #6ee7b7; }
+  .bc-detail-alert-icon--lose { background: rgba(107,114,128,0.1); color: #9ca3af; }
+  .bc-detail-alert-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; font-weight: 400; margin-bottom: 4px;
+  }
+  .bc-detail-alert-title--win { color: #6ee7b7; }
+  .bc-detail-alert-title--lose { color: #9ca3af; }
+  .bc-detail-alert-sub { font-size: 13px; color: rgba(200,195,185,0.55); }
+  .bc-detail-alert-sub span { color: #c8a96e; }
+
+  /* ── Main grid ── */
+  .bc-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  @media (min-width: 1024px) { .bc-detail-grid { grid-template-columns: 1fr 1fr; gap: 36px; } }
+
+  /* ── Image panel ── */
+  .bc-detail-img-main {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #0d0c14;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .bc-detail-img-main img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    padding: 20px;
+    transition: transform 0.5s ease;
+  }
+  .bc-detail-img-main:hover img { transform: scale(1.04); }
+  .bc-detail-img-no {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: rgba(200,169,110,0.2); gap: 10px;
+    font-size: 13px; color: rgba(200,195,185,0.25); letter-spacing: 0.08em;
+  }
+
+  /* Status badge on image */
+  .bc-detail-img-badge {
+    position: absolute; top: 16px; right: 16px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 999px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+    backdrop-filter: blur(10px);
+  }
+  .bc-detail-img-badge--upcoming {
+    background: rgba(59,130,246,0.18); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd;
+  }
+  .bc-detail-img-badge--ended {
+    background: rgba(107,114,128,0.2); border: 1px solid rgba(107,114,128,0.3); color: #9ca3af;
+  }
+  .bc-detail-img-badge--live {
+    background: rgba(16,185,129,0.18); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7;
+    animation: bc-det-pulse 2s ease-in-out infinite;
+  }
+  @keyframes bc-det-pulse { 0%,100%{opacity:1} 50%{opacity:0.65} }
+
+  /* Thumbnails */
+  .bc-detail-thumbs {
+    display: flex; gap: 10px;
+    overflow-x: auto; padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .bc-detail-thumbs::-webkit-scrollbar { display: none; }
+  .bc-detail-thumb {
+    width: 72px; height: 72px; flex-shrink: 0;
+    border-radius: 10px; overflow: hidden;
+    border: 1.5px solid transparent;
+    background: #0d0c14;
+    cursor: pointer;
+    transition: border-color 0.2s, opacity 0.2s, transform 0.2s;
+    opacity: 0.5;
+  }
+  .bc-detail-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .bc-detail-thumb--active { border-color: #c8a96e; opacity: 1; transform: scale(1.05); }
+  .bc-detail-thumb:not(.bc-detail-thumb--active):hover { opacity: 0.8; }
+
+  /* ── Panel (reusable box) ── */
+  .bc-detail-panel {
+    background: #0d0c14;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .bc-detail-panel-body { padding: 24px; }
+  .bc-detail-panel-head {
+    padding: 18px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 19px; font-weight: 400; color: #f5f0e8;
+  }
+  .bc-detail-panel-head svg { color: #c8a96e; }
+
+  /* ── Item header info ── */
+  .bc-detail-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .bc-detail-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 12px; border-radius: 999px;
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    border: 1px solid rgba(200,169,110,0.25);
+    background: rgba(200,169,110,0.07);
+    color: rgba(220,215,205,0.65);
+  }
+  .bc-detail-chip svg { color: rgba(200,169,110,0.6); }
+
+  .bc-detail-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 300; line-height: 1.1;
+    color: #f5f0e8; margin-bottom: 24px;
+  }
+
+  /* Price / timer / bids row */
+  .bc-detail-meta-row {
+    display: flex; flex-wrap: wrap; gap: 24px;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .bc-detail-meta-item { display: flex; flex-direction: column; gap: 5px; }
+  .bc-detail-meta-label {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(200,195,185,0.33);
+  }
+  .bc-detail-meta-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 40px; font-weight: 300; line-height: 1;
+    color: #c8a96e; display: flex; align-items: center; gap: 2px;
+  }
+  .bc-detail-meta-price-base {
+    font-size: 12px; color: rgba(200,195,185,0.3);
+    text-decoration: line-through; margin-top: 4px;
+  }
+  .bc-detail-meta-timer {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 300;
+  }
+  .bc-detail-meta-timer--upcoming { color: #93c5fd; }
+  .bc-detail-meta-timer--ended   { color: rgba(200,195,185,0.3); }
+  .bc-detail-meta-timer--active  { color: #f5f0e8; }
+  .bc-detail-meta-bids {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px; font-weight: 300; color: #f5f0e8;
+  }
+
+  /* Divider */
+  .bc-detail-divider { height: 1px; background: rgba(255,255,255,0.05); margin: 24px 0; }
+
+  /* ── Bid form area ── */
+  .bc-detail-upcoming-box {
+    background: rgba(59,130,246,0.06);
+    border: 1px solid rgba(59,130,246,0.15);
+    border-radius: 12px; padding: 24px;
+    text-align: center;
+  }
+  .bc-detail-upcoming-box svg { color: #93c5fd; margin: 0 auto 12px; display: block; }
+  .bc-detail-upcoming-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; color: #93c5fd; margin-bottom: 6px;
+  }
+  .bc-detail-upcoming-sub {
+    font-size: 13px; color: rgba(147,197,253,0.65); line-height: 1.6;
+  }
+  .bc-detail-upcoming-sub strong { color: #93c5fd; }
+
+  /* Info / banned notices */
+  .bc-detail-notice {
+    border-radius: 12px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px;
+  }
+  .bc-detail-notice--danger {
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5;
+  }
+  .bc-detail-notice--info {
+    background: rgba(200,169,110,0.07); border: 1px solid rgba(200,169,110,0.15); color: rgba(220,215,205,0.6);
+  }
+  .bc-detail-notice--login {
+    background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.1);
+    color: rgba(220,215,205,0.5); flex-direction: column; gap: 12px;
+    text-align: center; padding: 24px;
+  }
+
+  /* Inline alerts (error/success) */
+  .bc-detail-inline-alert {
+    border-radius: 10px; padding: 11px 14px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; margin-bottom: 14px;
+  }
+  .bc-detail-inline-alert--err {
+    background: rgba(239,68,68,0.09); border: 1px solid rgba(239,68,68,0.2); color: #fca5a5;
+  }
+  .bc-detail-inline-alert--ok {
+    background: rgba(16,185,129,0.09); border: 1px solid rgba(16,185,129,0.2); color: #6ee7b7;
+  }
+
+  /* Bid input row */
+  .bc-detail-bid-row {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  @media (min-width: 480px) { .bc-detail-bid-row { flex-direction: row; } }
+
+  .bc-detail-bid-wrap { position: relative; flex: 1; }
+  .bc-detail-bid-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: rgba(200,169,110,0.45); pointer-events: none; z-index: 2;
+    transition: color 0.2s;
+  }
+  .bc-detail-bid-wrap:focus-within .bc-detail-bid-icon { color: #c8a96e; }
+  .bc-detail-bid-input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 12px;
+    padding: 13px 14px 13px 42px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: #f0ebe0;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .bc-detail-bid-input::placeholder { color: rgba(200,195,185,0.2); }
+  .bc-detail-bid-input:focus {
+    border-color: rgba(200,169,110,0.5);
+    background: rgba(200,169,110,0.04);
+    box-shadow: 0 0 0 3px rgba(200,169,110,0.07);
+  }
+  .bc-detail-bid-input:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .bc-detail-bid-btn {
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 13px 24px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: #0a0a0f;
+    background: linear-gradient(135deg, #c8a96e, #a07840);
+    border: none; border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(200,169,110,0.25);
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+    white-space: nowrap;
+  }
+  .bc-detail-bid-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .bc-detail-bid-btn:hover:not(:disabled) {
+    transform: translateY(-1px); box-shadow: 0 10px 28px rgba(200,169,110,0.35);
+  }
+  .bc-detail-bid-btn:hover:not(:disabled)::before { opacity: 1; }
+  .bc-detail-bid-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .bc-detail-bid-btn-spin {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid rgba(10,10,15,0.25); border-top-color: #0a0a0f;
+    animation: bc-det-spin 0.8s linear infinite;
+  }
+
+  .bc-detail-bid-terms {
+    font-size: 11px; color: rgba(200,195,185,0.25);
+    margin-top: 8px; letter-spacing: 0.04em;
+  }
+
+  /* Login-to-bid button */
+  .bc-detail-login-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 22px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: #0a0a0f;
+    background: linear-gradient(135deg, #c8a96e, #a07840);
+    border: none; border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(200,169,110,0.25);
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .bc-detail-login-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(200,169,110,0.35); }
+
+  /* Auction-ended result */
+  .bc-detail-ended-box {
+    text-align: center; padding-top: 4px;
+  }
+  .bc-detail-ended-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 400; color: rgba(200,195,185,0.5);
+    margin-bottom: 12px;
+  }
+  .bc-detail-winner-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 18px; border-radius: 999px;
+    background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.22);
+    color: #6ee7b7; font-size: 13px;
+  }
+  .bc-detail-no-winner { font-size: 13px; color: rgba(200,195,185,0.35); }
+
+  /* Description text */
+  .bc-detail-desc {
+    font-size: 13px; font-weight: 300;
+    color: rgba(220,215,205,0.5);
+    line-height: 1.8; white-space: pre-line;
+  }
+
+  /* Bid history */
+  .bc-detail-hist-scroll {
+    max-height: 280px; overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(200,169,110,0.2) transparent;
+  }
+  .bc-detail-hist-scroll::-webkit-scrollbar { width: 4px; }
+  .bc-detail-hist-scroll::-webkit-scrollbar-thumb {
+    background: rgba(200,169,110,0.2); border-radius: 999px;
+  }
+  .bc-detail-hist-table { width: 100%; border-collapse: collapse; }
+  .bc-detail-hist-table thead tr { border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .bc-detail-hist-table th {
+    padding: 10px 20px;
+    font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: rgba(200,195,185,0.25); font-weight: 400; text-align: left;
+  }
+  .bc-detail-hist-table th:last-child { text-align: right; }
+  .bc-detail-hist-table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,0.035);
+    transition: background 0.15s;
+  }
+  .bc-detail-hist-table tbody tr:last-child { border-bottom: none; }
+  .bc-detail-hist-table tbody tr:first-child { background: rgba(200,169,110,0.04); }
+  .bc-detail-hist-table tbody tr:hover { background: rgba(200,169,110,0.03); }
+  .bc-detail-hist-table td {
+    padding: 12px 20px;
+    font-size: 13px; vertical-align: middle;
+  }
+  .bc-detail-hist-bidder { color: #e8d5a3; }
+  .bc-detail-hist-highest {
+    margin-left: 8px;
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+    background: rgba(200,169,110,0.12); border: 1px solid rgba(200,169,110,0.22);
+    color: #c8a96e;
+  }
+  .bc-detail-hist-amount {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px; font-weight: 400; color: #c8a96e;
+  }
+  .bc-detail-hist-time { font-size: 12px; color: rgba(200,195,185,0.3); text-align: right; }
+
+  .bc-detail-hist-empty {
+    padding: 48px 24px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+  }
+  .bc-detail-hist-empty-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: rgba(200,169,110,0.05); border: 1px solid rgba(200,169,110,0.1);
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(200,169,110,0.25); margin-bottom: 12px;
+  }
+  .bc-detail-hist-empty p { font-size: 13px; color: rgba(200,195,185,0.3); }
+
+  .bc-detail-go-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: #0a0a0f; text-decoration: none;
+    background: linear-gradient(135deg, #c8a96e, #a07840);
+    border: none; border-radius: 10px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(200,169,110,0.25);
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .bc-detail-go-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(200,169,110,0.35); }
+`;
 
 const ItemDetail = () => {
   const { id } = useParams();
@@ -31,30 +505,25 @@ const ItemDetail = () => {
   const [success, setSuccess] = useState("");
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [, setTick] = useState(0); // State to force re-render every second
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     fetchItemDetails();
-    
-    // Live Timer Interval
     const timer = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(timer);
   }, [id]);
 
   const fetchItemDetails = async () => {
     try {
-      // Don't set loading true on background refreshes if data exists
-      if (!item) setLoading(true); 
-      
-      const [itemResponse, bidsResponse] = await Promise.all([
+      if (!item) setLoading(true);
+      const [itemRes, bidsRes] = await Promise.all([
         api.get(`/items/${id}`),
         api.get(`/items/${id}/bids`),
       ]);
-
-      setItem(itemResponse.data);
-      setBids(bidsResponse.data);
-    } catch (error) {
-      console.error("Error fetching item details:", error);
+      setItem(itemRes.data);
+      setBids(bidsRes.data);
+    } catch (err) {
+      console.error("Error fetching item details:", err);
       setError("Failed to load item details");
     } finally {
       setLoading(false);
@@ -63,423 +532,344 @@ const ItemDetail = () => {
 
   const handleBid = async (e) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
-
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-
-    if (item.status === 'upcoming') {
-        setError("Auction has not started yet.");
-        return;
-    }
-
+    setError(""); setSuccess("");
+    if (!user) { navigate("/login"); return; }
+    if (item.status === "upcoming") { setError("Auction has not started yet."); return; }
     const amount = parseFloat(bidAmount);
-    if (!amount || amount <= 0) {
-      setError("Please enter a valid bid amount");
-      return;
-    }
-
+    if (!amount || amount <= 0) { setError("Please enter a valid bid amount"); return; }
     const currentPrice = item.currentBid || item.basePrice;
-    if (amount <= currentPrice) {
-      setError(`Bid must be higher than $${currentPrice}`);
-      return;
-    }
-
+    if (amount <= currentPrice) { setError(`Bid must be higher than ₹${currentPrice}`); return; }
     try {
       setSubmitting(true);
       const response = await api.post(`/bids/${id}`, { amount });
       setSuccess(response.data.message || "Bid placed successfully!");
       setBidAmount("");
-      fetchItemDetails(); // Refresh data
-    } catch (error) {
-      setError(error.response?.data?.message || "Failed to place bid");
+      fetchItemDetails();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to place bid");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Logic for Status
-  const isUpcoming = item && item.status === 'upcoming';
-  const isAuctionEnded = item && (new Date(item.endTime) < new Date() || item.status === 'sold' || item.status === 'expired' || item.status === 'closed');
-  const isAuctionActive = item && item.status === 'active' && !isAuctionEnded && !isUpcoming;
+  const isUpcoming      = item && item.status === "upcoming";
+  const isAuctionEnded  = item && (new Date(item.endTime) < new Date() || item.status === "sold" || item.status === "expired" || item.status === "closed");
+  const isAuctionActive = item && item.status === "active" && !isAuctionEnded && !isUpcoming;
 
-  // Logic for winning/losing
   const didUserBid = user && bids.some(bid => bid.bidder._id === user._id || bid.bidder === user._id);
-  const isWinner = user && item?.winner && (item.winner._id === user._id || item.winner === user._id);
-  const isLoser = isAuctionEnded && didUserBid && !isWinner;
+  const isWinner   = user && item?.winner && (item.winner._id === user._id || item.winner === user._id);
+  const isLoser    = isAuctionEnded && didUserBid && !isWinner;
 
-  // Unified Timer Function
   const formatTimer = () => {
     if (!item) return "";
     const now = new Date();
-    
-    // If upcoming, count down to Start Time. Else, count to End Time.
-    const targetDate = isUpcoming ? new Date(item.startTime) : new Date(item.endTime);
-    const diff = targetDate - now;
-
-    if (diff <= 0) {
-        return isUpcoming ? "Starting..." : "Auction ended";
-    }
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-    if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-    return `${hours}h ${minutes}m ${seconds}s`;
+    const target = isUpcoming ? new Date(item.startTime) : new Date(item.endTime);
+    const diff = target - now;
+    if (diff <= 0) return isUpcoming ? "Starting…" : "Auction ended";
+    const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000),
+          m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+    return d > 0 ? `${d}d ${h}h ${m}m ${s}s` : `${h}h ${m}m ${s}s`;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="bc-detail-loading"><div className="bc-detail-spinner" /></div>
+  );
 
-  if (!item) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center p-8 bg-white rounded-2xl shadow-sm border border-gray-100">
-           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-           <h2 className="text-2xl font-bold text-gray-900 mb-2">Item Not Found</h2>
-           <p className="text-gray-500 mb-6">The auction you are looking for does not exist or has been removed.</p>
-           <button 
-             onClick={() => navigate('/')}
-             className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
-           >
-             Go Home
-           </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Breadcrumb / Back */}
-        <button 
-          onClick={() => navigate(-1)}
-          className="flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back to Listings
-        </button>
-
-        {/* WIN/LOSS ALERTS */}
-        {isWinner && (
-          <div className="mb-8 bg-green-50 border border-green-200 p-6 rounded-2xl flex items-start sm:items-center gap-4 animate-fadeIn">
-            <div className="p-3 bg-green-100 text-green-600 rounded-full">
-               <Trophy className="w-8 h-8" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-green-800">Congratulations!</h3>
-              <p className="text-green-700">You have won this auction with a bid of <span className="font-bold">${item.currentBid}</span>.</p>
-            </div>
-          </div>
-        )}
-
-        {isLoser && (
-          <div className="mb-8 bg-gray-100 border border-gray-300 p-6 rounded-2xl flex items-start sm:items-center gap-4 animate-fadeIn">
-             <div className="p-3 bg-gray-200 text-gray-600 rounded-full">
-               <Gavel className="w-8 h-8" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-gray-800">Auction Ended</h3>
-              <p className="text-gray-600">Unfortunately, you did not win this item. Better luck next time!</p>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-          
-          {/* LEFT COLUMN - IMAGES */}
-          <div className="space-y-4">
-            <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-white shadow-sm border border-gray-100 group">
-              {item.images && item.images.length > 0 ? (
-                <>
-                  <img
-                    src={item.images[currentImageIndex]}
-                    alt={item.title}
-                    className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
-                  />
-                  {/* Status Badge Overlay */}
-                  <div className="absolute top-4 right-4">
-                      {isUpcoming ? (
-                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/90 text-white backdrop-blur-md shadow-sm">
-                            <Calendar className="w-3 h-3" /> Upcoming
-                         </span>
-                      ) : isAuctionEnded ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-gray-900/80 text-white backdrop-blur-md">
-                           Auction Ended
-                          </span>
-                      ) : (
-                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-500/90 text-white backdrop-blur-md animate-pulse">
-                            <Clock className="w-3 h-3" /> Live Auction
-                         </span>
-                      )}
-                  </div>
-                </>
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400">
-                  <Tag className="w-16 h-16 mb-2 opacity-50" />
-                  <span>No Image Available</span>
-                </div>
-              )}
-            </div>
-
-            {/* Thumbnails */}
-            {item.images && item.images.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                {item.images.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentImageIndex(index)}
-                    className={`relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all ${
-                      index === currentImageIndex
-                        ? "border-indigo-600 shadow-md scale-105"
-                        : "border-transparent opacity-70 hover:opacity-100 hover:border-gray-300"
-                    }`}
-                  >
-                    <img
-                      src={image}
-                      alt={`Thumbnail ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            {/* Description Section for Mobile */}
-            <div className="lg:hidden bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-               <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                 <Info className="w-5 h-5 text-indigo-600" /> Description
-               </h3>
-               <p className="text-gray-600 leading-relaxed whitespace-pre-line">{item.description}</p>
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN - INFO & ACTIONS */}
-          <div className="space-y-6">
-            
-            {/* Header Info */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                 <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider rounded-full">
-                    {item.category}
-                 </span>
-                 <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold uppercase tracking-wider rounded-full flex items-center gap-1">
-                    <User className="w-3 h-3" /> {item.seller?.name || 'Unknown Seller'}
-                 </span>
-              </div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 leading-tight mb-2">
-                {item.title}
-              </h1>
-            </div>
-
-            {/* Current Status Card */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-               <div className="flex flex-wrap items-end gap-x-8 gap-y-4 mb-6">
-                 <div>
-                    <p className="text-sm font-medium text-gray-500 mb-1">
-                        {isUpcoming ? "Starting Bid" : "Current Price"}
-                    </p>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-extrabold text-indigo-600">
-                            ${item.currentBid || item.basePrice}
-                        </span>
-                        {item.currentBid > item.basePrice && (
-                             <span className="text-sm text-gray-400 line-through font-medium">
-                                Base: ${item.basePrice}
-                             </span>
-                        )}
-                    </div>
-                 </div>
-                 
-                 <div className="pl-6 border-l border-gray-100">
-                    <p className="text-sm font-medium text-gray-500 mb-1">
-                        {isUpcoming ? "Starts In" : isAuctionEnded ? "Status" : "Ends In"}
-                    </p>
-                    <div className={`flex items-center gap-2 font-bold text-lg ${
-                        isUpcoming ? "text-blue-600" : isAuctionEnded ? "text-red-500" : "text-gray-800"
-                    }`}>
-                        <Clock className="w-5 h-5" />
-                        {formatTimer()}
-                    </div>
-                 </div>
-
-                 <div className="pl-6 border-l border-gray-100">
-                    <p className="text-sm font-medium text-gray-500 mb-1">Total Bids</p>
-                    <div className="font-bold text-lg text-gray-800">
-                        {bids.length}
-                    </div>
-                 </div>
-               </div>
-
-               {/* Bidding Action Area */}
-               {isUpcoming ? (
-                  <div className="pt-6 border-t border-gray-100">
-                     <div className="text-center py-6 bg-blue-50 rounded-xl border border-blue-100">
-                         <Calendar className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                         <h3 className="text-blue-900 font-bold text-lg">Coming Soon</h3>
-                         <p className="text-blue-700">
-                            This auction is scheduled to start on <br/>
-                            <span className="font-semibold text-blue-900">
-                                {new Date(item.startTime).toLocaleString([], { dateStyle: 'long', timeStyle: 'short' })}
-                            </span>
-                         </p>
-                     </div>
-                  </div>
-               ) : isAuctionActive ? (
-                 <div className="pt-6 border-t border-gray-100">
-                   {!user ? (
-                       <div className="text-center py-4 bg-gray-50 rounded-xl border border-gray-200 border-dashed">
-                            <p className="text-gray-600 mb-3 font-medium">Sign in to participate in this auction</p>
-                            <button
-                               onClick={() => navigate("/login")}
-                               className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-sm"
-                           >
-                               Login to Bid
-                           </button>
-                       </div>
-                   ) : user.isBanned ? (
-                       <div className="bg-red-50 p-4 rounded-xl flex items-center gap-3 text-red-700 border border-red-100">
-                            <ShieldAlert className="w-6 h-6 flex-shrink-0" />
-                            <p className="font-medium">Your account is suspended. You cannot place bids.</p>
-                       </div>
-                   ) : user.role !== 'Buyer' ? (
-                        <div className="bg-gray-50 p-4 rounded-xl flex items-center gap-3 text-gray-600 border border-gray-200">
-                            <User className="w-5 h-5 flex-shrink-0" />
-                            <p className="font-medium">Registered as {user.role}. Only Buyer accounts can bid.</p>
-                       </div>
-                   ) : (
-                       <>
-                          {error && (
-                               <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-lg flex items-center gap-2">
-                                   <AlertCircle className="w-4 h-4" /> {error}
-                               </div>
-                          )}
-                          {success && (
-                               <div className="mb-4 p-3 bg-green-50 text-green-700 text-sm font-medium rounded-lg flex items-center gap-2">
-                                   <CheckCircle2 className="w-4 h-4" /> {success}
-                               </div>
-                          )}
-                          
-                          <form onSubmit={handleBid} className="flex flex-col sm:flex-row gap-3">
-                               <div className="relative flex-grow">
-                                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                       <DollarSign className="h-5 w-5 text-gray-400" />
-                                   </div>
-                                   <input
-                                       type="number"
-                                       value={bidAmount}
-                                       onChange={(e) => setBidAmount(e.target.value)}
-                                       min={item.currentBid ? item.currentBid + 1 : item.basePrice + 1}
-                                       step="0.01"
-                                       required
-                                       disabled={submitting}
-                                       placeholder={`Enter $${item.currentBid ? item.currentBid + 1 : item.basePrice + 1} or more`}
-                                       className="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-medium"
-                                   />
-                               </div>
-                               <button
-                                   type="submit"
-                                   disabled={submitting}
-                                   className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 hover:shadow-indigo-300 disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-95 flex items-center justify-center gap-2"
-                               >
-                                   {submitting ? (
-                                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                   ) : (
-                                       <>Place Bid <Gavel className="w-4 h-4" /></>
-                                   )}
-                               </button>
-                          </form>
-                          <p className="text-xs text-gray-400 mt-2 text-center sm:text-left">
-                              By placing a bid, you agree to the auction terms and conditions.
-                          </p>
-                       </>
-                   )}
-                 </div>
-               ) : null}
-
-               {/* Auction Ended Status */}
-               {isAuctionEnded && (
-                   <div className="pt-6 border-t border-gray-100 text-center">
-                       <h3 className="text-gray-900 font-bold text-lg mb-1">Auction Closed</h3>
-                       {item.winner ? (
-                           <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg mt-2">
-                               <Trophy className="w-4 h-4" />
-                               <span className="font-semibold">Winner: {item.winner.name || item.winner}</span>
-                           </div>
-                       ) : (
-                           <p className="text-gray-500">No bids were placed or reserve not met.</p>
-                       )}
-                   </div>
-               )}
-            </div>
-
-            {/* Description (Desktop) */}
-            <div className="hidden lg:block bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-               <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                 <Info className="w-5 h-5 text-indigo-600" /> Description
-               </h3>
-               <p className="text-gray-600 leading-relaxed whitespace-pre-line">{item.description}</p>
-            </div>
-
-            {/* Bid History */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <History className="w-5 h-5 text-indigo-600" /> Bid History
-                    </h3>
-                </div>
-                
-                {bids.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                        <Gavel className="w-10 h-10 mx-auto text-gray-300 mb-2 opacity-50" />
-                        <p>No bids yet. Be the first!</p>
-                    </div>
-                ) : (
-                    <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-50 sticky top-0">
-                                <tr>
-                                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Bidder</th>
-                                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
-                                    <th className="px-6 py-3 text-xs font-semibold text-gray-500 uppercase text-right">Time</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {bids.map((bid, index) => (
-                                    <tr key={bid._id} className={index === 0 ? "bg-indigo-50/30" : ""}>
-                                        <td className="px-6 py-3 text-sm text-gray-900 font-medium">
-                                            {bid.bidder.name === user?.name ? "You" : bid.bidder.name}
-                                            {index === 0 && <span className="ml-2 text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded font-bold">Highest</span>}
-                                        </td>
-                                        <td className="px-6 py-3 text-sm font-bold text-indigo-600">
-                                            ${bid.amount}
-                                        </td>
-                                        <td className="px-6 py-3 text-sm text-gray-500 text-right">
-                                            {new Date(bid.createdAt).toLocaleString()}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-          </div>
-        </div>
+  if (!item) return (
+    <div className="bc-detail-notfound">
+      <div className="bc-detail-notfound-card">
+        <div className="bc-detail-notfound-icon"><AlertCircle size={26} /></div>
+        <h2>Item Not Found</h2>
+        <p>The auction you're looking for doesn't exist or has been removed.</p>
+        <button className="bc-detail-go-btn" onClick={() => navigate("/")}>Go Home</button>
       </div>
     </div>
+  );
+
+  const timerClass = isUpcoming ? "bc-detail-meta-timer bc-detail-meta-timer--upcoming"
+    : isAuctionEnded ? "bc-detail-meta-timer bc-detail-meta-timer--ended"
+    : "bc-detail-meta-timer bc-detail-meta-timer--active";
+
+  return (
+    <>
+      <style>{styles}</style>
+      <div className="bc-detail">
+        <div className="bc-detail-inner">
+
+          {/* Back */}
+          <button className="bc-detail-back" onClick={() => navigate(-1)}>
+            <ArrowLeft size={14} /> Back to Listings
+          </button>
+
+          {/* Result alerts */}
+          {isWinner && (
+            <div className="bc-detail-alert bc-detail-alert--win">
+              <div className="bc-detail-alert-icon bc-detail-alert-icon--win"><Trophy size={22} /></div>
+              <div>
+                <div className="bc-detail-alert-title bc-detail-alert-title--win">Congratulations!</div>
+                <div className="bc-detail-alert-sub">
+                  You've won this auction with a bid of <span>${item.currentBid}</span>.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isLoser && (
+            <div className="bc-detail-alert bc-detail-alert--lose">
+              <div className="bc-detail-alert-icon bc-detail-alert-icon--lose"><Gavel size={22} /></div>
+              <div>
+                <div className="bc-detail-alert-title bc-detail-alert-title--lose">Auction Ended</div>
+                <div className="bc-detail-alert-sub">Unfortunately you didn't win this item. Better luck next time!</div>
+              </div>
+            </div>
+          )}
+
+          <div className="bc-detail-grid">
+
+            {/* ── LEFT: Images ── */}
+            <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+              <div className="bc-detail-img-main">
+                {item.images && item.images.length > 0 ? (
+                  <img src={item.images[currentImageIndex]} alt={item.title} />
+                ) : (
+                  <div className="bc-detail-img-no">
+                    <Tag size={36} style={{color:'rgba(200,169,110,0.15)'}} />
+                    No Image Available
+                  </div>
+                )}
+                {/* Status badge */}
+                {isUpcoming ? (
+                  <div className="bc-detail-img-badge bc-detail-img-badge--upcoming">
+                    <Calendar size={11} /> Upcoming
+                  </div>
+                ) : isAuctionEnded ? (
+                  <div className="bc-detail-img-badge bc-detail-img-badge--ended">
+                    Auction Ended
+                  </div>
+                ) : (
+                  <div className="bc-detail-img-badge bc-detail-img-badge--live">
+                    <Clock size={11} /> Live Auction
+                  </div>
+                )}
+              </div>
+
+              {/* Thumbnails */}
+              {item.images && item.images.length > 1 && (
+                <div className="bc-detail-thumbs">
+                  {item.images.map((img, i) => (
+                    <button
+                      key={i}
+                      className={`bc-detail-thumb${i === currentImageIndex ? " bc-detail-thumb--active" : ""}`}
+                      onClick={() => setCurrentImageIndex(i)}
+                    >
+                      <img src={img} alt={`Thumb ${i + 1}`} />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Description – mobile */}
+              <div className="bc-detail-panel lg:hidden" style={{display:'block'}}>
+                <div className="bc-detail-panel-head"><Info size={16} /> Description</div>
+                <div className="bc-detail-panel-body">
+                  <p className="bc-detail-desc">{item.description}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── RIGHT: Info & actions ── */}
+            <div style={{display:'flex', flexDirection:'column', gap:'20px'}}>
+
+              {/* Title / chips */}
+              <div>
+                <div className="bc-detail-chips">
+                  <span className="bc-detail-chip"><Tag size={10} />{item.category}</span>
+                  <span className="bc-detail-chip"><User size={10} />{item.seller?.name || "Unknown Seller"}</span>
+                </div>
+                <h1 className="bc-detail-title">{item.title}</h1>
+              </div>
+
+              {/* Status card */}
+              <div className="bc-detail-panel">
+                <div className="bc-detail-panel-body">
+
+                  {/* Meta row */}
+                  <div className="bc-detail-meta-row">
+                    <div className="bc-detail-meta-item">
+                      <div className="bc-detail-meta-label">
+                        {isUpcoming ? "Starting Bid" : "Current Price"}
+                      </div>
+                      <div className="bc-detail-meta-price">
+                        <DollarSign size={22} strokeWidth={2} />
+                        {item.currentBid || item.basePrice}
+                      </div>
+                      {item.currentBid > item.basePrice && (
+                        <div className="bc-detail-meta-price-base">Base: ${item.basePrice}</div>
+                      )}
+                    </div>
+
+                    <div className="bc-detail-meta-item">
+                      <div className="bc-detail-meta-label">
+                        {isUpcoming ? "Starts In" : isAuctionEnded ? "Status" : "Ends In"}
+                      </div>
+                      <div className={timerClass}>
+                        <Clock size={16} strokeWidth={1.5} /> {formatTimer()}
+                      </div>
+                    </div>
+
+                    <div className="bc-detail-meta-item">
+                      <div className="bc-detail-meta-label">Total Bids</div>
+                      <div className="bc-detail-meta-bids">{bids.length}</div>
+                    </div>
+                  </div>
+
+                  {/* Bid area */}
+                  {isUpcoming && (
+                    <div className="bc-detail-upcoming-box">
+                      <Calendar size={28} />
+                      <div className="bc-detail-upcoming-title">Coming Soon</div>
+                      <p className="bc-detail-upcoming-sub">
+                        Scheduled to start on<br />
+                        <strong>{new Date(item.startTime).toLocaleString([], { dateStyle: "long", timeStyle: "short" })}</strong>
+                      </p>
+                    </div>
+                  )}
+
+                  {isAuctionActive && (
+                    <div>
+                      {!user ? (
+                        <div className="bc-detail-notice bc-detail-notice--login">
+                          <p>Sign in to participate in this auction</p>
+                          <button className="bc-detail-login-btn" onClick={() => navigate("/login")}>
+                            Login to Bid
+                          </button>
+                        </div>
+                      ) : user.isBanned ? (
+                        <div className="bc-detail-notice bc-detail-notice--danger">
+                          <ShieldAlert size={16} style={{flexShrink:0}} />
+                          Your account is suspended. You cannot place bids.
+                        </div>
+                      ) : user.role !== "Buyer" ? (
+                        <div className="bc-detail-notice bc-detail-notice--info">
+                          <User size={15} style={{flexShrink:0}} />
+                          Registered as {user.role}. Only Buyer accounts can bid.
+                        </div>
+                      ) : (
+                        <div>
+                          {error && (
+                            <div className="bc-detail-inline-alert bc-detail-inline-alert--err">
+                              <AlertCircle size={13} /> {error}
+                            </div>
+                          )}
+                          {success && (
+                            <div className="bc-detail-inline-alert bc-detail-inline-alert--ok">
+                              <CheckCircle2 size={13} /> {success}
+                            </div>
+                          )}
+                          <form onSubmit={handleBid}>
+                            <div className="bc-detail-bid-row">
+                              <div className="bc-detail-bid-wrap">
+                                <div className="bc-detail-bid-icon"><DollarSign size={15} /></div>
+                                <input
+                                  type="number"
+                                  value={bidAmount}
+                                  onChange={e => setBidAmount(e.target.value)}
+                                  min={item.currentBid ? item.currentBid + 1 : item.basePrice + 1}
+                                  step="0.01"
+                                  required
+                                  disabled={submitting}
+                                  placeholder={`₹${item.currentBid ? item.currentBid + 1 : item.basePrice + 1} or more`}
+                                  className="bc-detail-bid-input"
+                                />
+                              </div>
+                              <button type="submit" disabled={submitting} className="bc-detail-bid-btn">
+                                {submitting
+                                  ? <div className="bc-detail-bid-btn-spin" />
+                                  : <><Gavel size={14} /> Place Bid</>
+                                }
+                              </button>
+                            </div>
+                            <p className="bc-detail-bid-terms">
+                              By placing a bid, you agree to the auction terms and conditions.
+                            </p>
+                          </form>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {isAuctionEnded && (
+                    <div className="bc-detail-ended-box">
+                      <div className="bc-detail-ended-title">Auction Closed</div>
+                      {item.winner ? (
+                        <div className="bc-detail-winner-pill">
+                          <Trophy size={13} /> Winner: {item.winner.name || item.winner}
+                        </div>
+                      ) : (
+                        <p className="bc-detail-no-winner">No bids were placed or reserve not met.</p>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+              </div>
+
+              {/* Description – desktop */}
+              <div className="bc-detail-panel" style={{display: 'none'}} id="bc-desc-desktop">
+                <div className="bc-detail-panel-head"><Info size={16} /> Description</div>
+                <div className="bc-detail-panel-body">
+                  <p className="bc-detail-desc">{item.description}</p>
+                </div>
+              </div>
+              <div className="bc-detail-panel" style={{}}>
+                <div className="bc-detail-panel-head"><Info size={16} /> Description</div>
+                <div className="bc-detail-panel-body">
+                  <p className="bc-detail-desc">{item.description}</p>
+                </div>
+              </div>
+
+              {/* Bid History */}
+              <div className="bc-detail-panel">
+                <div className="bc-detail-panel-head"><History size={16} /> Bid History</div>
+                {bids.length === 0 ? (
+                  <div className="bc-detail-hist-empty">
+                    <div className="bc-detail-hist-empty-icon"><Gavel size={20} /></div>
+                    <p>No bids yet. Be the first!</p>
+                  </div>
+                ) : (
+                  <div className="bc-detail-hist-scroll">
+                    <table className="bc-detail-hist-table">
+                      <thead>
+                        <tr>
+                          <th>Bidder</th>
+                          <th>Amount</th>
+                          <th>Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bids.map((bid, i) => (
+                          <tr key={bid._id}>
+                            <td>
+                              <span className="bc-detail-hist-bidder">
+                                {bid.bidder.name === user?.name ? "You" : bid.bidder.name}
+                              </span>
+                              {i === 0 && <span className="bc-detail-hist-highest">Highest</span>}
+                            </td>
+                            <td><span className="bc-detail-hist-amount">${bid.amount}</span></td>
+                            <td><div className="bc-detail-hist-time">{new Date(bid.createdAt).toLocaleString()}</div></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 };
 
