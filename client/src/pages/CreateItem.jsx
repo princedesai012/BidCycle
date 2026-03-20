@@ -433,7 +433,7 @@ const CreateItem = () => {
         data.append("customEndTime", formData.customEndTime);
       }
       imageFiles.forEach(f => data.append("images", f));
-      await api.post("/seller/items", data, { headers: { "Content-Type": undefined } });
+      await api.post("/seller/items", data);
       navigate("/my-items");
     } catch (err) {
       setError(err.message || err.response?.data?.message || "Failed to create item");

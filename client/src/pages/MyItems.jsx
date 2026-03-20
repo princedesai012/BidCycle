@@ -593,7 +593,7 @@ const MyItems = () => {
                             <div className="bc-mi-bid-row">
                               <div>
                                 <div className="bc-mi-bid-label">Current Bid</div>
-                                <div className="bc-mi-bid-val">${item.currentBid || item.basePrice}</div>
+                                <div className="bc-mi-bid-val">₹{item.currentBid || item.basePrice}</div>
                               </div>
                               <div>
                                 <div className="bc-mi-bid-label" style={{textAlign:'right'}}>Bids</div>

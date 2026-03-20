@@ -608,7 +608,7 @@ const ItemDetail = () => {
               <div>
                 <div className="bc-detail-alert-title bc-detail-alert-title--win">Congratulations!</div>
                 <div className="bc-detail-alert-sub">
-                  You've won this auction with a bid of <span>${item.currentBid}</span>.
+                  You've won this auction with a bid of <span>₹{item.currentBid}</span>.
                 </div>
               </div>
             </div>

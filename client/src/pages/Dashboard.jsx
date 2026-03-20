@@ -336,7 +336,7 @@ const SellerDashboard = ({ user }) => {
                         </div>
                       </td>
                       <td><span className={ended ? "bc-dash-badge bc-dash-badge--ended" : "bc-dash-badge bc-dash-badge--active"}>{ended ? "Ended" : "Active"}</span></td>
-                      <td><span className="bc-dash-price">${item.currentBid || item.basePrice}</span></td>
+                      <td><span className="bc-dash-price">₹{item.currentBid || item.basePrice}</span></td>
                       <td><span className="bc-dash-date">{new Date(item.createdAt).toLocaleDateString()}</span></td>
                     </tr>
                   );

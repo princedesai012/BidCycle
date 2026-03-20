@@ -396,7 +396,7 @@ const EditItem = () => {
       if (newImageFiles.length > 0) {
         const imgForm = new FormData();
         newImageFiles.forEach(f => imgForm.append("images", f));
-        await api.post(`/seller/items/${id}/images`, imgForm, { headers: { "Content-Type": undefined } });
+        await api.post(`/seller/items/${id}/images`, imgForm);
       }
       navigate("/my-items");
     } catch (err) {
