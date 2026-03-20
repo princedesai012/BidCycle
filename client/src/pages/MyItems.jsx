@@ -562,7 +562,7 @@ const MyItems = () => {
                     {/* Image */}
                     <div className="bc-mi-img-wrap">
                       {item.images && item.images.length > 0 ? (
-                        <img src={item.images[0]} alt={item.title} className="bc-mi-img" />
+                        <img src={item.images[0] || "https://placehold.co/600x400/13121a/c8a96e?text=No+Image"} alt={item.title} className="bc-mi-img" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/600x400/13121a/c8a96e?text=No+Image"; }} />
                       ) : (
                         <div className="bc-mi-no-img">No Image</div>
                       )}

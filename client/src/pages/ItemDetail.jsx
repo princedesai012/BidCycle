@@ -4,7 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import api from "../services/api";
 import {
   Clock,
-  DollarSign,
+  IndianRupee,
   User,
   Tag,
   AlertCircle,
@@ -630,7 +630,7 @@ const ItemDetail = () => {
             <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
               <div className="bc-detail-img-main">
                 {item.images && item.images.length > 0 ? (
-                  <img src={item.images[currentImageIndex]} alt={item.title} />
+                  <img src={item.images[currentImageIndex] || "https://placehold.co/600x600/13121a/c8a96e?text=No+Image"} alt={item.title} onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/600x600/13121a/c8a96e?text=No+Image"; }} />
                 ) : (
                   <div className="bc-detail-img-no">
                     <Tag size={36} style={{color:'rgba(200,169,110,0.15)'}} />
@@ -662,7 +662,7 @@ const ItemDetail = () => {
                       className={`bc-detail-thumb${i === currentImageIndex ? " bc-detail-thumb--active" : ""}`}
                       onClick={() => setCurrentImageIndex(i)}
                     >
-                      <img src={img} alt={`Thumb ${i + 1}`} />
+                      <img src={img || "https://placehold.co/100x100/13121a/c8a96e?text=No+Image"} alt={`Thumb ${i + 1}`} onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/100x100/13121a/c8a96e?text=No+Image"; }} />
                     </button>
                   ))}
                 </div>
@@ -700,11 +700,11 @@ const ItemDetail = () => {
                         {isUpcoming ? "Starting Bid" : "Current Price"}
                       </div>
                       <div className="bc-detail-meta-price">
-                        <DollarSign size={22} strokeWidth={2} />
+                        <IndianRupee size={22} strokeWidth={2} />
                         {item.currentBid || item.basePrice}
                       </div>
                       {item.currentBid > item.basePrice && (
-                        <div className="bc-detail-meta-price-base">Base: ${item.basePrice}</div>
+                        <div className="bc-detail-meta-price-base">Base: ₹{item.basePrice}</div>
                       )}
                     </div>
 
@@ -769,7 +769,7 @@ const ItemDetail = () => {
                           <form onSubmit={handleBid}>
                             <div className="bc-detail-bid-row">
                               <div className="bc-detail-bid-wrap">
-                                <div className="bc-detail-bid-icon"><DollarSign size={15} /></div>
+                                <div className="bc-detail-bid-icon"><IndianRupee size={15} /></div>
                                 <input
                                   type="number"
                                   value={bidAmount}
@@ -855,7 +855,7 @@ const ItemDetail = () => {
                               </span>
                               {i === 0 && <span className="bc-detail-hist-highest">Highest</span>}
                             </td>
-                            <td><span className="bc-detail-hist-amount">${bid.amount}</span></td>
+                            <td><span className="bc-detail-hist-amount">₹{bid.amount}</span></td>
                             <td><div className="bc-detail-hist-time">{new Date(bid.createdAt).toLocaleString()}</div></td>
                           </tr>
                         ))}

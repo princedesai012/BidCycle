@@ -10,7 +10,7 @@ import {
   CreditCard,
   Plus,
   List,
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   ArrowRight,
   Activity,
@@ -296,7 +296,7 @@ const SellerDashboard = ({ user }) => {
         {[
           { icon: <Package size={20} />, label: "Active Listings",     val: activeItems },
           { icon: <Trophy size={20} />,  label: "Completed Auctions",  val: soldItems },
-          { icon: <DollarSign size={20} />, label: "Potential Revenue", val: `₹${totalRevenue.toLocaleString()}` },
+          { icon: <IndianRupee size={20} />, label: "Potential Revenue", val: `₹${totalRevenue.toLocaleString()}` },
         ].map((s, i) => (
           <div className="bc-dash-stat" key={i}>
             <div className="bc-dash-stat-icon">{s.icon}</div>
@@ -330,7 +330,7 @@ const SellerDashboard = ({ user }) => {
                       <td>
                         <div className="bc-dash-item-cell">
                           <div className="bc-dash-item-thumb">
-                            {item.images?.[0] ? <img src={item.images[0]} alt="" /> : <Package size={13} />}
+                            {item.images?.[0] ? <img src={item.images[0] || "https://placehold.co/100x100/13121a/c8a96e?text=No+Image"} alt="" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/100x100/13121a/c8a96e?text=No+Image"; }} /> : <Package size={13} />}
                           </div>
                           <span className="bc-dash-item-name">{item.title}</span>
                         </div>
@@ -437,14 +437,14 @@ const BuyerDashboard = ({ user }) => {
                       <td>
                         <div className="bc-dash-item-cell">
                           <div className="bc-dash-item-thumb">
-                            {bid.item?.images?.[0] ? <img src={bid.item.images[0]} alt="" /> : <Gavel size={12} />}
+                            {bid.item?.images?.[0] ? <img src={bid.item.images[0] || "https://placehold.co/100x100/13121a/c8a96e?text=No+Image"} alt="" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/100x100/13121a/c8a96e?text=No+Image"; }} /> : <Gavel size={12} />}
                           </div>
                           <span className="bc-dash-item-name">
                             {bid.item?.title || <em style={{color:'rgba(200,195,185,0.28)'}}>Item Deleted</em>}
                           </span>
                         </div>
                       </td>
-                      <td><span className="bc-dash-bid-amt">${bid.amount}</span></td>
+                      <td><span className="bc-dash-bid-amt">₹{bid.amount}</span></td>
                       <td>
                         {bid.item
                           ? <span className={badgeCls}>{isEnded && isWinning && <Trophy size={9} />}{badgeLbl}</span>

@@ -5,10 +5,11 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import debounce from '../utils/debounce';
 import {
-  Search, Tag, Clock, DollarSign, User,
+  Search, Tag, Clock, User,
   ChevronLeft, ChevronRight, Image as ImageIcon,
   ArrowRight, CheckCircle, XCircle, AlertCircle, Calendar,
-  Gavel, LayoutGrid, Trophy
+  Gavel, LayoutGrid, Trophy,
+  IndianRupee
 } from 'lucide-react';
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
@@ -695,7 +696,7 @@ const Home = () => {
                     {/* Image */}
                     <div className="bc-item-img-wrap">
                       {item.images && item.images.length > 0 ? (
-                        <img src={item.images[0]} alt={item.title} className="bc-item-img" />
+                        <img src={item.images[0] || "https://placehold.co/600x400/13121a/c8a96e?text=No+Image"} alt={item.title} className="bc-item-img" onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/600x400/13121a/c8a96e?text=No+Image"; }} />
                       ) : (
                         <div className="bc-item-no-img">
                           <ImageIcon size={28} />
@@ -720,7 +721,7 @@ const Home = () => {
                             {new Date() < new Date(item.startTime) ? 'Starting Bid' : 'Current Bid'}
                           </div>
                           <div className="bc-item-bid-val">
-                            <DollarSign size={14} strokeWidth={2.5} />
+                            <IndianRupee size={14} strokeWidth={2.5} />
                             {item.currentBid || item.basePrice}
                           </div>
                         </div>
