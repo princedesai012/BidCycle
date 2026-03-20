@@ -2,39 +2,306 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import debounce from '../utils/debounce';
-import { 
-  Search, 
-  Filter, 
-  Trash2, 
-  Eye, 
-  Clock, 
-  AlertCircle,
-  Package,
-  ChevronLeft,
-  ChevronRight,
-  User,
-  MoreHorizontal
+import {
+  Search, Filter, Trash2, Eye, Clock,
+  AlertCircle, Package, ChevronLeft, ChevronRight, User
 } from 'lucide-react';
 
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+  .bc-aitems * { box-sizing: border-box; }
+
+  .bc-aitems {
+    min-height: 100vh;
+    background: #0a0a0f;
+    font-family: 'DM Sans', sans-serif;
+    color: #f0ebe0;
+    padding: 40px 24px 72px;
+  }
+  .bc-aitems-inner { max-width: 1280px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .bc-aitems-header {
+    margin-bottom: 36px;
+    padding-bottom: 26px;
+    border-bottom: 1px solid rgba(200,169,110,0.12);
+  }
+  .bc-aitems-eyebrow {
+    font-size: 10px; letter-spacing: 0.35em; text-transform: uppercase;
+    color: #c8a96e; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .bc-aitems-eyebrow::before { content: ''; width: 24px; height: 1px; background: #c8a96e; }
+  .bc-aitems-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(28px, 3.5vw, 42px);
+    font-weight: 300; line-height: 1.1; color: #f5f0e8;
+  }
+  .bc-aitems-title em { font-style: italic; color: #c8a96e; }
+  .bc-aitems-sub { font-size: 13px; color: rgba(200,195,185,0.38); margin-top: 6px; }
+
+  /* ── Error ── */
+  .bc-aitems-error {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 12px; padding: 13px 16px; margin-bottom: 24px;
+    font-size: 13px; color: #fca5a5;
+  }
+
+  /* ── Filter bar ── */
+  .bc-aitems-filters {
+    background: rgba(13,12,20,0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(200,169,110,0.1);
+    border-radius: 14px; padding: 14px 18px;
+    margin-bottom: 28px;
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+  }
+
+  .bc-aitems-search-wrap { position: relative; flex: 1; min-width: 200px; }
+  .bc-aitems-search-icon {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    color: rgba(200,169,110,0.4); pointer-events: none;
+    transition: color 0.2s;
+  }
+  .bc-aitems-search-wrap:focus-within .bc-aitems-search-icon { color: #c8a96e; }
+  .bc-aitems-search {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 10px 14px 10px 38px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: #f0ebe0;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  }
+  .bc-aitems-search::placeholder { color: rgba(200,195,185,0.2); }
+  .bc-aitems-search:focus {
+    border-color: rgba(200,169,110,0.45);
+    background: rgba(200,169,110,0.04);
+    box-shadow: 0 0 0 3px rgba(200,169,110,0.07);
+  }
+
+  .bc-aitems-status-wrap { position: relative; width: 100%; }
+  @media (min-width: 480px) { .bc-aitems-status-wrap { width: 180px; } }
+  .bc-aitems-status-icon {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    color: rgba(200,169,110,0.4); pointer-events: none;
+  }
+  .bc-aitems-status {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 10px 36px 10px 38px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: #f0ebe0;
+    outline: none; appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23c8a96e'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px;
+    transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+  }
+  .bc-aitems-status option { background: #13121a; color: #f0ebe0; }
+  .bc-aitems-status:focus {
+    border-color: rgba(200,169,110,0.45);
+    background-color: rgba(200,169,110,0.04);
+    box-shadow: 0 0 0 3px rgba(200,169,110,0.07);
+  }
+
+  /* ── Loading ── */
+  .bc-aitems-loading {
+    display: flex; align-items: center; justify-content: center;
+    height: 240px;
+  }
+  .bc-aitems-spinner {
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 2px solid rgba(200,169,110,0.15);
+    border-top-color: #c8a96e;
+    animation: bc-aitems-spin 0.8s linear infinite;
+  }
+  @keyframes bc-aitems-spin { to { transform: rotate(360deg); } }
+
+  /* ── Grid ── */
+  .bc-aitems-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  @media (min-width: 640px)  { .bc-aitems-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1024px) { .bc-aitems-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  /* ── Item card ── */
+  .bc-aitems-card {
+    background: #0d0c14;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+  }
+  .bc-aitems-card:hover {
+    border-color: rgba(200,169,110,0.22);
+    transform: translateY(-3px);
+    box-shadow: 0 14px 36px rgba(0,0,0,0.45);
+  }
+
+  /* Image */
+  .bc-aitems-img-wrap {
+    position: relative; height: 190px;
+    background: #13121a; overflow: hidden;
+  }
+  .bc-aitems-img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.55s ease;
+  }
+  .bc-aitems-card:hover .bc-aitems-img { transform: scale(1.06); }
+  .bc-aitems-no-img {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; font-size: 12px; color: rgba(200,195,185,0.2); letter-spacing: 0.08em;
+  }
+  .bc-aitems-img-overlay {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0);
+    transition: background 0.3s; pointer-events: none;
+  }
+  .bc-aitems-card:hover .bc-aitems-img-overlay { background: rgba(0,0,0,0.12); }
+
+  /* Status badge on image */
+  .bc-aitems-badge {
+    position: absolute; top: 12px; right: 12px;
+    display: inline-flex; align-items: center;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 10px; letter-spacing: 0.06em;
+    backdrop-filter: blur(8px);
+  }
+  .bc-aitems-badge--active  { background:rgba(16,185,129,0.18);  border:1px solid rgba(16,185,129,0.3);  color:#6ee7b7; }
+  .bc-aitems-badge--expired { background:rgba(239,68,68,0.14);   border:1px solid rgba(239,68,68,0.25);  color:#fca5a5; }
+  .bc-aitems-badge--sold    { background:rgba(59,130,246,0.14);  border:1px solid rgba(59,130,246,0.25); color:#93c5fd; }
+  .bc-aitems-badge--closed  { background:rgba(107,114,128,0.14); border:1px solid rgba(107,114,128,0.25);color:#9ca3af; }
+
+  /* Card body */
+  .bc-aitems-body { padding: 18px; display: flex; flex-direction: column; flex: 1; }
+  .bc-aitems-card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; font-weight: 400; color: #f5f0e8;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 7px; transition: color 0.2s;
+  }
+  .bc-aitems-card:hover .bc-aitems-card-title { color: #c8a96e; }
+  .bc-aitems-seller {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: rgba(200,195,185,0.38);
+    margin-bottom: 16px;
+  }
+
+  /* Bid / timer box */
+  .bc-aitems-meta {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 10px; padding: 12px 14px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 14px; margin-top: auto;
+  }
+  .bc-aitems-meta-label {
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(200,195,185,0.3); margin-bottom: 4px;
+  }
+  .bc-aitems-meta-val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 300; color: #c8a96e; line-height: 1;
+  }
+  .bc-aitems-meta-timer {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 11px; color: rgba(245,158,11,0.7);
+    text-align: right;
+  }
+
+  /* Action buttons */
+  .bc-aitems-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bc-aitems-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 9px; text-decoration: none;
+    border: 1px solid; cursor: pointer; background: none;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+  .bc-aitems-btn--view {
+    border-color: rgba(200,169,110,0.2); color: rgba(200,169,110,0.65);
+  }
+  .bc-aitems-btn--view:hover { background: rgba(200,169,110,0.08); color: #c8a96e; border-color: rgba(200,169,110,0.38); }
+  .bc-aitems-btn--del {
+    border-color: rgba(239,68,68,0.18); color: rgba(248,113,113,0.6);
+  }
+  .bc-aitems-btn--del:hover:not(:disabled) { background: rgba(239,68,68,0.09); color: #f87171; border-color: rgba(239,68,68,0.32); }
+  .bc-aitems-btn--del:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Empty ── */
+  .bc-aitems-empty {
+    background: #0d0c14;
+    border: 1px dashed rgba(200,169,110,0.12);
+    border-radius: 18px; padding: 72px 24px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+  }
+  .bc-aitems-empty-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    background: rgba(200,169,110,0.06); border: 1px solid rgba(200,169,110,0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(200,169,110,0.28); margin-bottom: 14px;
+  }
+  .bc-aitems-empty p { font-size: 13px; color: rgba(200,195,185,0.32); }
+
+  /* ── Pagination ── */
+  .bc-aitems-pagination {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .bc-aitems-page-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 999px;
+    color: rgba(220,215,205,0.5);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+  .bc-aitems-page-btn:hover:not(:disabled) {
+    color: #e8d5a3; border-color: rgba(200,169,110,0.35); background: rgba(200,169,110,0.07);
+  }
+  .bc-aitems-page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .bc-aitems-page-info {
+    padding: 8px 18px; font-size: 12px; letter-spacing: 0.06em;
+    color: rgba(200,195,185,0.38);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 999px;
+  }
+  .bc-aitems-page-info span {
+    color: #c8a96e;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px; font-weight: 400;
+  }
+`;
+
 const AdminItems = () => {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  
-  const [inputValue, setInputValue] = useState('');
-  const [search, setSearch] = useState('');
-  
-  const [status, setStatus] = useState('');
+  const [items, setItems]             = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState('');
+  const [inputValue, setInputValue]   = useState('');
+  const [search, setSearch]           = useState('');
+  const [status, setStatus]           = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [deleting, setDeleting] = useState(null);
+  const [totalPages, setTotalPages]   = useState(1);
+  const [deleting, setDeleting]       = useState(null);
 
   const debouncedUpdate = useCallback(
-    debounce((value) => {
-      setSearch(value);
-      setCurrentPage(1);
-    }, 500),
-    []
+    debounce((value) => { setSearch(value); setCurrentPage(1); }, 500), []
   );
 
   const handleInputChange = (e) => {
@@ -43,20 +310,17 @@ const AdminItems = () => {
     debouncedUpdate(value);
   };
 
-  useEffect(() => {
-    fetchItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, search, status]);
+  useEffect(() => { fetchItems(); }, [currentPage, search, status]);
 
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/admin/items?page=${currentPage}&search=${search}&status=${status}`);
-      setItems(response.data.items);
-      setTotalPages(response.data.pagination.total);
-    } catch (error) {
+      const res = await api.get(`/admin/items?page=${currentPage}&search=${search}&status=${status}`);
+      setItems(res.data.items);
+      setTotalPages(res.data.pagination.total);
+    } catch (err) {
       setError('Failed to load items');
-      console.error('Fetch items error:', error);
+      console.error('Fetch items error:', err);
     } finally {
       setLoading(false);
     }
@@ -64,212 +328,180 @@ const AdminItems = () => {
 
   const handleDelete = async (itemId) => {
     if (!window.confirm('Are you sure you want to delete this item? This action cannot be undone.')) return;
-
     try {
       setDeleting(itemId);
       await api.delete(`/admin/items/${itemId}`);
-      setItems(items.filter(item => item._id !== itemId));
-    } catch (error) {
+      setItems(items.filter(i => i._id !== itemId));
+    } catch (err) {
       alert('Failed to delete item');
-      console.error('Delete item error:', error);
+      console.error('Delete item error:', err);
     } finally {
       setDeleting(null);
     }
   };
 
   const getStatusBadge = (item) => {
-    const now = new Date();
-    const endTime = new Date(item.endTime);
-
-    if (item.status === 'sold') 
-      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Sold</span>;
-    if (item.status === 'closed') 
-      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Closed</span>;
-    if (endTime <= now) 
-      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Expired</span>;
-    return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>;
+    const now = new Date(), end = new Date(item.endTime);
+    if (item.status === 'sold')   return <div className="bc-aitems-badge bc-aitems-badge--sold">Sold</div>;
+    if (item.status === 'closed') return <div className="bc-aitems-badge bc-aitems-badge--closed">Closed</div>;
+    if (end <= now)               return <div className="bc-aitems-badge bc-aitems-badge--expired">Expired</div>;
+    return <div className="bc-aitems-badge bc-aitems-badge--active">Active</div>;
   };
 
   const formatTimeRemaining = (endTime) => {
-    const now = new Date();
-    const end = new Date(endTime);
-    const diff = end - now;
+    const diff = new Date(endTime) - new Date();
     if (diff <= 0) return 'Ended';
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    
-    if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-    return `${hours}h ${minutes}m ${seconds}s`;
+    const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000),
+          m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+    return d > 0 ? `${d}d ${h}h ${m}m ${s}s` : `${h}h ${m}m ${s}s`;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Manage Items</h1>
-          <p className="text-gray-500 mt-2">Monitor and moderate auction listings</p>
-        </div>
+    <>
+      <style>{styles}</style>
+      <div className="bc-aitems">
+        <div className="bc-aitems-inner">
 
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-2">
-            <AlertCircle className="w-5 h-5" />
-            {error}
+          {/* Header */}
+          <div className="bc-aitems-header">
+            <div className="bc-aitems-eyebrow">Admin Panel</div>
+            <h1 className="bc-aitems-title">Manage <em>Items</em></h1>
+            <p className="bc-aitems-sub">Monitor and moderate auction listings</p>
           </div>
-        )}
 
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+          {/* Error */}
+          {error && (
+            <div className="bc-aitems-error">
+              <AlertCircle size={15} style={{flexShrink:0}} /> {error}
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="bc-aitems-filters">
+            <div className="bc-aitems-search-wrap">
+              <div className="bc-aitems-search-icon"><Search size={14} /></div>
               <input
-                type="text"
-                placeholder="Search items by title..."
-                value={inputValue}
-                onChange={handleInputChange}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                type="text" placeholder="Search items by title…"
+                value={inputValue} onChange={handleInputChange}
+                className="bc-aitems-search"
               />
             </div>
-            <div className="relative w-full md:w-48">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <div className="bc-aitems-status-wrap">
+              <div className="bc-aitems-status-icon"><Filter size={13} /></div>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full pl-10 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all appearance-none cursor-pointer"
+                onChange={e => { setStatus(e.target.value); setCurrentPage(1); }}
+                className="bc-aitems-status"
               >
                 <option value="">All Status</option>
                 <option value="active">Active</option>
                 <option value="ended">Ended</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
             </div>
           </div>
-        </div>
 
-        {/* Content */}
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {items.map(item => {
-                const isActive = item.status === 'active' && new Date(item.endTime) > new Date();
-                
-                return (
-                  <div key={item._id} className="group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden">
-                    {/* Image Area */}
-                    <div className="relative h-48 bg-gray-200 overflow-hidden">
-                      {item.images && item.images.length > 0 ? (
-                        <img 
-                          src={item.images[0]} 
-                          alt={item.title} 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
-                          <Package className="w-8 h-8 mb-2 opacity-50" />
-                          <span className="text-sm">No Image</span>
-                        </div>
-                      )}
-                      <div className="absolute top-3 right-3 flex gap-2">
-                        {getStatusBadge(item)}
-                      </div>
-                    </div>
-
-                    {/* Content Area */}
-                    <div className="p-5 flex flex-col flex-1">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-lg font-bold text-gray-900 line-clamp-1" title={item.title}>
-                          {item.title}
-                        </h3>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                        <User className="w-4 h-4" />
-                        <span className="truncate">Seller: {item.seller?.name || 'Unknown'}</span>
-                      </div>
-
-                      <div className="mt-auto space-y-4">
-                        <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                          <div>
-                            <p className="text-xs text-gray-500 font-medium uppercase">Current Bid</p>
-                            <p className="text-lg font-bold text-indigo-600">${item.currentBid || item.basePrice}</p>
-                          </div>
-                          {isActive && (
-                            <div className="text-right">
-                              <p className="text-xs text-gray-500 font-medium uppercase">Ends In</p>
-                              <div className="flex items-center gap-1 text-sm font-semibold text-gray-700">
-                                <Clock className="w-3 h-3" />
-                                {formatTimeRemaining(item.endTime)}
-                              </div>
+          {/* Content */}
+          {loading ? (
+            <div className="bc-aitems-loading"><div className="bc-aitems-spinner" /></div>
+          ) : (
+            <>
+              {items.length === 0 ? (
+                <div className="bc-aitems-empty">
+                  <div className="bc-aitems-empty-icon"><Package size={22} /></div>
+                  <p>No items found matching your criteria.</p>
+                </div>
+              ) : (
+                <div className="bc-aitems-grid">
+                  {items.map(item => {
+                    const isActive = item.status === 'active' && new Date(item.endTime) > new Date();
+                    return (
+                      <div key={item._id} className="bc-aitems-card">
+                        {/* Image */}
+                        <div className="bc-aitems-img-wrap">
+                          {item.images?.length > 0 ? (
+                            <img src={item.images[0]} alt={item.title} className="bc-aitems-img" />
+                          ) : (
+                            <div className="bc-aitems-no-img">
+                              <Package size={26} style={{color:'rgba(200,169,110,0.15)'}} />
+                              No Image
                             </div>
                           )}
+                          <div className="bc-aitems-img-overlay" />
+                          {getStatusBadge(item)}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <Link
-                            to={`/item/${item._id}`}
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-                          >
-                            <Eye className="w-4 h-4" /> View
-                          </Link>
-                          <button
-                            onClick={() => handleDelete(item._id)}
-                            disabled={deleting === item._id}
-                            className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors disabled:opacity-50"
-                          >
-                            {deleting === item._id ? '...' : <><Trash2 className="w-4 h-4" /> Delete</>}
-                          </button>
+                        {/* Body */}
+                        <div className="bc-aitems-body">
+                          <div className="bc-aitems-card-title">{item.title}</div>
+                          <div className="bc-aitems-seller">
+                            <User size={12} /> Seller: {item.seller?.name || 'Unknown'}
+                          </div>
+
+                          <div className="bc-aitems-meta">
+                            <div>
+                              <div className="bc-aitems-meta-label">Current Bid</div>
+                              <div className="bc-aitems-meta-val">${item.currentBid || item.basePrice}</div>
+                            </div>
+                            {isActive && (
+                              <div style={{textAlign:'right'}}>
+                                <div className="bc-aitems-meta-label">Ends In</div>
+                                <div className="bc-aitems-meta-timer">
+                                  <Clock size={11} /> {formatTimeRemaining(item.endTime)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="bc-aitems-actions">
+                            <Link to={`/item/${item._id}`} className="bc-aitems-btn bc-aitems-btn--view">
+                              <Eye size={12} /> View
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(item._id)}
+                              disabled={deleting === item._id}
+                              className="bc-aitems-btn bc-aitems-btn--del"
+                            >
+                              {deleting === item._id
+                                ? '…'
+                                : <><Trash2 size={12} /> Delete</>
+                              }
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="bc-aitems-pagination">
+                  <button
+                    className="bc-aitems-page-btn"
+                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="bc-aitems-page-info">
+                    Page <span>{currentPage}</span> of {totalPages}
                   </div>
-                );
-              })}
-            </div>
+                  <button
+                    className="bc-aitems-page-btn"
+                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <span className="text-sm font-medium text-gray-700">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="p-2 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            )}
-
-            {items.length === 0 && (
-              <div className="p-12 text-center text-gray-500 bg-white rounded-2xl shadow-sm border border-gray-100">
-                <Package className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                <p className="text-lg">No items found matching your criteria.</p>
-              </div>
-            )}
-          </>
-        )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
