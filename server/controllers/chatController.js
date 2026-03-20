@@ -173,7 +173,7 @@ exports.chat = async (req, res) => {
         const userId = req.user._id;
 
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash-lite",
+            model: "gemini-2.5-flash-lite",
             tools: toolsDefinition,
             systemInstruction: `You are the "BidCycle AI Assistant," an intelligent auction expert.
 Your goal is to help users find items, compare products, place bids, and strategize.
